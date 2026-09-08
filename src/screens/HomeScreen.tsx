@@ -13,6 +13,7 @@ import Pills from "../assets/svg_icons/pills.svg"
 import Heart from "../assets/svg_icons/heart.svg"
 import Clock from "../assets/svg_icons/clock.svg"
 import Check from "../assets/svg_icons/check.svg"
+import CircularProgress from '../components/CircularProgress';
 const nextMedication = {
   name: 'Metformin 500g',
   time: '9:00 AM',
@@ -134,7 +135,9 @@ export default function HomeScreen() {
               {/* Left - Status */}
               <View className="flex-1 bg-teal-50 rounded-xl p-3 items-center justify-center">
                 {/* Heart icon placeholder */}
-                <View className="w-10 h-10 bg-teal-200 rounded-full mb-2" />
+                <CircularProgress progress={80} size={80} strokeWidth={8}>
+                  <Heart width={36} height={36} color="#14B8A6" />
+                </CircularProgress>
                 <Text className="text-teal-600 font-bold text-lg">
                   {healthSummary.status}
                 </Text>
