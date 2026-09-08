@@ -24,9 +24,9 @@ export default function BottomTabNavigator() {
         },
       }}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Medicine" component={MedicineScreen} />
-      <Tab.Screen name="Checkup" component={CheckupScreen} />
       <Tab.Screen name="Schedule" component={ScheduleScreen} />
+      <Tab.Screen name="Meds" component={MedicineScreen} />
+      <Tab.Screen name="Reports" component={CheckupScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
