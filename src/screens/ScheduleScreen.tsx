@@ -12,7 +12,7 @@ import Plus from '../assets/svg_icons/plus.svg';
 import Bell from '../assets/svg_icons/bell.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Pills from '../assets/svg_icons/pills.svg';
-
+import Filter from '../assets/svg_icons/filter.svg';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const appointmentDays = new Set([8, 12, 13, 15, 22]);
@@ -164,8 +164,8 @@ export default function ScheduleScreen() {
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity className="flex-row items-center gap-2 bg-white px-4 py-2 rounded-xl">
-              <View className="w-4 h-4 bg-gray-300 rounded" />
+            <TouchableOpacity className="flex-row items-center justify-around bg-white py-2 px-4 w-[18%] rounded-xl">
+              <Filter width={25} height={25} color='text-gray-600'/>
               <Text className="text-gray-600 text-sm font-medium">Filters</Text>
             </TouchableOpacity>
           </View>
