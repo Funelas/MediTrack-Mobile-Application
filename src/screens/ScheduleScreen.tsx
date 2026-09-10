@@ -318,8 +318,6 @@ export default function ScheduleScreen() {
       <AddToScheduleModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSelectAppointment={() => setShowAddModal(false)}
-        onSelectReminder={() => setShowAddModal(false)}
       />
     </SafeAreaView>
   );

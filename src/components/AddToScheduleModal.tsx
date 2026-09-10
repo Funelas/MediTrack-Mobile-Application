@@ -9,19 +9,20 @@ import {
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Meds from '../assets/svg_icons/navigation_icons/meds.svg';
 import Bell from '../assets/svg_icons/bell.svg';
+import {useNavigation} from '@react-navigation/native';
+
 interface AddToScheduleModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelectAppointment: () => void;
-  onSelectReminder: () => void;
 }
 
-export default function AddToScheduleModal({
-  visible,
-  onClose,
-  onSelectAppointment,
-  onSelectReminder,
-}: AddToScheduleModalProps) {
+export default function AddToScheduleModal({visible, onClose}: AddToScheduleModalProps) {
+  const navigation = useNavigation<any>();
+
+  const handleSelect = (type: 'reminder' | 'appointment') => {
+    onClose();
+    navigation.navigate('AddSchedule', {type});
+  };
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       {/* Overlay */}
@@ -42,8 +43,8 @@ export default function AddToScheduleModal({
 
               {/* Appointment Option */}
               <TouchableOpacity
-                onPress={onSelectAppointment}
-                className="flex-row items-center justify-center gap-3 p-3 rounded-xl mb-5 border border-gray-100">
+                onPress={() => handleSelect('appointment')}
+                className="flex-row items-center justify-center gap-x-3 p-3 rounded-xl mb-4 border border-gray-100">
                 {/* Icon placeholder */}
                 <View className="w-10 h-10 bg-red-100 rounded-xl items-center justify-center">
                   <Calendar width={25} height={25} color='#F15C5C'/>
@@ -57,8 +58,8 @@ export default function AddToScheduleModal({
 
               {/* Reminder Option */}
               <TouchableOpacity
-                onPress={onSelectReminder}
-                className="flex-row items-center gap-3 p-3 rounded-xl mb-4 border border-gray-100">
+                onPress={() => handleSelect('reminder')}
+                className="flex-row items-center gap-x-3 p-3 rounded-xl mb-4 border border-gray-100">
                 {/* Icon placeholder */}
                 <View className="w-10 h-10 bg-yellow-100 rounded-xl items-center justify-center">
                   <Bell width={25} height={25} color='#E2EA00'/>
