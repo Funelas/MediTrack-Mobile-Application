@@ -28,3 +28,4 @@ DerivedData/
 *.log
 .env
 .env.*
+reference_imgs/
