@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import ScheduleSkeleton from '../components/ScheduleSkeleton';
+import AddToScheduleModal from '../components/AddToScheduleModal';
 import Plus from '../assets/svg_icons/plus.svg';
 import Bell from '../assets/svg_icons/bell.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
@@ -52,6 +53,7 @@ export default function ScheduleScreen() {
   const [selectedDay, setSelectedDay] = useState(today.getDate());
   const [checked, setChecked] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [showPriorDays, setShowPriorDays] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const d = new Date();
@@ -311,7 +313,14 @@ export default function ScheduleScreen() {
         </View>
       </ScrollView>
 
-      <FloatingAddButton onPress={() => {}} />
+      <FloatingAddButton onPress={() => setShowAddModal(true)} />
+
+      <AddToScheduleModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSelectAppointment={() => setShowAddModal(false)}
+        onSelectReminder={() => setShowAddModal(false)}
+      />
     </SafeAreaView>
   );
 }
