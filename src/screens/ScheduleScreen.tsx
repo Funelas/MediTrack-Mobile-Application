@@ -15,6 +15,16 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const appointmentDays = new Set([8, 12, 13, 15, 22]);
 
+function getWeekDates(date: Date): Date[] {
+  const start = new Date(date);
+  start.setDate(date.getDate() - date.getDay());
+  return Array.from({length: 7}, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
+
 const scheduleItems = [
   {id: '1', time: '8:00 AM', title: 'Amlodipine 5mg', subtitle: '1 tablet', color: '#14B8A6', type: 'med'},
   {id: '2', time: '1:00 PM', title: 'Check Blood Pressure', subtitle: 'Task', color: '#F97316', type: 'task'},
@@ -43,6 +53,41 @@ export default function ScheduleScreen() {
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDay, setSelectedDay] = useState(today.getDate());
   const [checked, setChecked] = useState<string[]>([]);
+  const [showPriorDays, setShowPriorDays] = useState(false);
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  });
+
+  const weekDates = getWeekDates(currentWeekStart);
+
+  const prevWeek = () => {
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() - 7);
+    setCurrentWeekStart(d);
+  };
+
+  const nextWeek = () => {
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() + 7);
+    setCurrentWeekStart(d);
+  };
+
+  const weekDaySchedule = weekDates.map(date => ({
+    date,
+    items: scheduleItems,
+  }));
+
+  const visibleWeekDays = showPriorDays
+    ? weekDaySchedule
+    : weekDaySchedule.filter(({date}) => {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        const t = new Date(today);
+        t.setHours(0, 0, 0, 0);
+        return d >= t;
+      });
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
@@ -128,6 +173,69 @@ export default function ScheduleScreen() {
 
           {/* Calendar */}
           <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+            {activeTab === 'Week' && (
+              <>
+                {/* Week Navigation */}
+                <View className="flex-row justify-between items-center mb-3">
+                  <TouchableOpacity onPress={prevWeek} className="p-1">
+                    <Text className="text-gray-500 text-lg">‹</Text>
+                  </TouchableOpacity>
+                  <Text className="text-gray-800 font-semibold">
+                    {MONTH_NAMES[currentWeekStart.getMonth()]} {currentWeekStart.getFullYear()}
+                  </Text>
+                  <TouchableOpacity onPress={nextWeek} className="p-1">
+                    <Text className="text-gray-500 text-lg">›</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Week Strip */}
+                <View className="flex-row mb-2">
+                  {DAYS.map(day => (
+                    <View key={day} className="flex-1 items-center">
+                      <Text className="text-gray-400 text-xs">{day}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View className="flex-row">
+                  {weekDates.map((date, i) => {
+                    const isToday = date.toDateString() === today.toDateString();
+                    const isSelected = date.toDateString() === new Date(currentYear, currentMonth, selectedDay).toDateString();
+                    const hasAppt = appointmentDays.has(date.getDate());
+                    return (
+                      <View key={i} className="flex-1 items-center">
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSelectedDay(date.getDate());
+                            setCurrentMonth(date.getMonth());
+                            setCurrentYear(date.getFullYear());
+                          }}
+                          className="items-center">
+                          <View className={`w-8 h-8 items-center justify-center rounded-full ${
+                            isSelected ? 'bg-teal-500' : isToday ? 'border border-teal-500' : ''
+                          }`}>
+                            <Text className={`text-sm ${
+                              isSelected ? 'text-white font-bold' : isToday ? 'text-teal-500 font-bold' : 'text-gray-700'
+                            }`}>
+                              {date.getDate()}
+                            </Text>
+                          </View>
+                          {hasAppt && (
+                            <View className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-white' : 'bg-teal-400'}`} />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+
+                {/* Appointment indicator */}
+                <View className="flex-row justify-center mt-3 gap-1 items-center">
+                  <View className="w-2 h-2 rounded-full bg-teal-400" />
+                  <Text className="text-gray-400 text-xs">Appointment</Text>
+                </View>
+              </>
+            )}
+            {activeTab === 'Month' && <>
             {/* Month Navigation */}
             <View className="flex-row justify-between items-center mb-3">
               <TouchableOpacity onPress={prevMonth} className="p-1">
@@ -196,48 +304,112 @@ export default function ScheduleScreen() {
               <View className="w-2 h-2 rounded-full bg-teal-400" />
               <Text className="text-gray-400 text-xs">Appointment</Text>
             </View>
+            </>}
           </View>
 
-          {/* Today Label */}
-          <View className="flex-row items-center gap-2 mb-3">
-            <Text className="text-gray-800 font-semibold">Today</Text>
-            <Text className="text-gray-400 text-sm">· {todayLabel}</Text>
-          </View>
-
-          {/* Schedule List */}
-          <View className="bg-white rounded-2xl shadow-sm mb-6 overflow-hidden">
-            {scheduleItems.map((item, index) => (
-              <View key={item.id}>
-                <View className="flex-row items-center px-4 py-3 gap-3">
-                  {/* Colored left border indicator */}
-                  {<View
-                    className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? item.color : 'bg-transparent'}`}
-                  />}
-                  <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
-                  <View className= 'flex justify-center items-center rounded-full'>
-                    {cardIcon(item.type)}
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
-                    <Text className="text-gray-400 text-xs mt-0.5">{item.subtitle}</Text>
-                  </View>
-                  {/* Checkbox */}
-                  <TouchableOpacity
-                    onPress={() => toggleCheck(item.id)}
-                    className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-                      checked.includes(item.id) ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
-                    }`}>
-                    {checked.includes(item.id) && (
-                      <Text className="text-white text-xs font-bold">✓</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-                {index < scheduleItems.length - 1 && (
-                  <View className="h-px bg-gray-100 ml-4" />
-                )}
+          {activeTab === 'Month' && (
+            <>
+              {/* Today Label */}
+              <View className="flex-row items-center gap-2 mb-3">
+                <Text className="text-gray-800 font-semibold">Today</Text>
+                <Text className="text-gray-400 text-sm">· {todayLabel}</Text>
               </View>
-            ))}
-          </View>
+              {/* Schedule List */}
+              <View className="bg-white rounded-2xl shadow-sm mb-6 overflow-hidden">
+                {scheduleItems.map((item, index) => (
+                  <View key={item.id}>
+                    <View className="flex-row items-center px-4 py-3 gap-3">
+                      {<View className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? item.color : 'bg-transparent'}`} />}
+                      <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
+                      <View className="flex justify-center items-center rounded-full">
+                        {cardIcon(item.type)}
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
+                        <Text className="text-gray-400 text-xs mt-0.5">{item.subtitle}</Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => toggleCheck(item.id)}
+                        className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
+                          checked.includes(item.id) ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
+                        }`}>
+                        {checked.includes(item.id) && (
+                          <Text className="text-white text-xs font-bold">✓</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                    {index < scheduleItems.length - 1 && <View className="h-px bg-gray-100 ml-4" />}
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
+
+          {activeTab === 'Week' && (
+            <>
+              {/* Unhide Prior Days */}
+              <TouchableOpacity
+                onPress={() => setShowPriorDays(p => !p)}
+                className="flex-row items-center gap-2 mb-3">
+                <View className={`w-4 h-4 rounded border-2 items-center justify-center ${
+                  showPriorDays ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
+                }`}>
+                  {showPriorDays && <Text className="text-white text-xs font-bold">✓</Text>}
+                </View>
+                <Text className="text-gray-600 text-sm">Unhide Prior Days</Text>
+              </TouchableOpacity>
+
+              {/* Grouped by Day */}
+              {visibleWeekDays.map(({date, items}) => {
+                const isToday = date.toDateString() === today.toDateString();
+                const dayLabel = isToday
+                  ? 'Today'
+                  : date.toLocaleDateString('en-US', {weekday: 'long'});
+                const dateLabel = date.toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                });
+                return (
+                  <View key={date.toDateString()} className="mb-4">
+                    {/* Day Header */}
+                    <View className="flex-row items-center gap-2 mb-2">
+                      <Text className="text-gray-800 font-semibold">{dayLabel}</Text>
+                      <Text className="text-gray-400 text-sm">· {dateLabel}</Text>
+                    </View>
+                    {/* Items */}
+                    <View className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                      {items.map((item, index) => (
+                        <View key={item.id}>
+                          <View className="flex-row items-center px-4 py-3 gap-3">
+                            {<View className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? item.color : 'bg-transparent'}`} />}
+                            <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
+                            <View className="flex justify-center items-center rounded-full">
+                              {cardIcon(item.type)}
+                            </View>
+                            <View className="flex-1">
+                              <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
+                              <Text className="text-gray-400 text-xs mt-0.5">{item.subtitle}</Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => toggleCheck(`${date.toDateString()}-${item.id}`)}
+                              className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
+                                checked.includes(`${date.toDateString()}-${item.id}`) ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
+                              }`}>
+                              {checked.includes(`${date.toDateString()}-${item.id}`) && (
+                                <Text className="text-white text-xs font-bold">✓</Text>
+                              )}
+                            </TouchableOpacity>
+                          </View>
+                          {index < items.length - 1 && <View className="h-px bg-gray-100 ml-4" />}
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })}
+            </>
+          )}
 
         </View>
       </ScrollView>
