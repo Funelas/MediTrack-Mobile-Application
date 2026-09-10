@@ -8,6 +8,9 @@ import {
 } from 'react-native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import Plus from '../assets/svg_icons/plus.svg';
+import Bell from "../assets/svg_icons/bell.svg"
+import Calendar from "../assets/svg_icons/calendar.svg"
+import Pills from "../assets/svg_icons/pills.svg"
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const appointmentDays = new Set([8, 12, 13, 15, 22]);
@@ -80,6 +83,15 @@ export default function ScheduleScreen() {
     year: 'numeric',
   });
 
+  const cardIcon = (cardType : string) => {
+    switch (cardType) {
+      case 'med': return <Pills width={25} height={25} color="#139880" />;
+      case 'task': return <Bell width={25} height={25} color="#E2EA00" />;
+      case 'appointment': return <Calendar width={25} height={25} color="#F15C5C" />;
+      default: return <Plus width={25} height={25} color="#FFFFFC" />;
+
+    }
+  }
   return (
     <SafeAreaView className="flex-1 bg-gray-100" style={{position: 'relative'}}>
       {/* Header */}
@@ -197,12 +209,14 @@ export default function ScheduleScreen() {
             {scheduleItems.map((item, index) => (
               <View key={item.id}>
                 <View className="flex-row items-center px-4 py-3 gap-3">
-                  <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
                   {/* Colored left border indicator */}
-                  {item.type === 'appointment' ? <View
-                    className={`w-1 h-10 rounded-full ${item.color}`}
-                  /> : ''}
-                  
+                  {<View
+                    className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? item.color : 'bg-transparent'}`}
+                  />}
+                  <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
+                  <View className= 'flex justify-center items-center rounded-full'>
+                    {cardIcon(item.type)}
+                  </View>
                   <View className="flex-1">
                     <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
                     <Text className="text-gray-400 text-xs mt-0.5">{item.subtitle}</Text>
