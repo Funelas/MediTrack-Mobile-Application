@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   TextInput,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import Pills from '../assets/svg_icons/pills.svg';
 import MagnifyingGlass from '../assets/svg_icons/magnifying-glass.svg';
@@ -93,6 +94,7 @@ function StockBar({instock, total, status}: {instock: number; total: number; sta
 }
 
 export default function MedicineScreen() {
+  const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
 
   const filtered = medicines.filter(m =>
@@ -114,7 +116,7 @@ export default function MedicineScreen() {
 
           {/* Search + Filters */}
           <View className="flex-row gap-3 mb-4 items-center">
-            <View className="flex-1 flex-row items-center bg-white rounded-xl px-3 gap-2 border border-gray-100">
+            <View className="flex-1 flex-row items-center bg-white rounded-xl px-3 gap-x-2 border border-gray-100">
               {/* Search icon placeholder */}
               <MagnifyingGlass width={25} height={25} color='black' />
               <TextInput
@@ -125,7 +127,7 @@ export default function MedicineScreen() {
                 className="flex-1 py-3 text-sm text-gray-800"
               />
             </View>
-            <TouchableOpacity className="flex-row items-center gap-2 bg-white px-4 py-3 rounded-xl border border-gray-100">
+            <TouchableOpacity className="flex-row items-center gap-x-2 bg-white px-4 py-3 rounded-xl border border-gray-100">
               {/* Filter icon placeholder */}
               <Filter width={25} height={25} color='black' />
               <Text className="text-gray-600 text-sm font-medium">Filters</Text>
@@ -220,7 +222,7 @@ export default function MedicineScreen() {
         </View>
       </ScrollView>
 
-      <FloatingAddButton onPress={() => {}} />
+      <FloatingAddButton onPress={() => navigation.navigate('AddMedicine')} />
     </SafeAreaView>
   );
 }

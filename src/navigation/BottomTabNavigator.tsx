@@ -2,6 +2,7 @@ import React from 'react';
 import {View, Text} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
+import MedsStackNavigator from './MedsStackNavigator';
 import MedicineScreen from '../screens/MedicineScreen';
 import CheckupScreen from '../screens/CheckupScreen';
 import ScheduleStackNavigator from './ScheduleStackNavigator';
@@ -80,8 +81,18 @@ export default function BottomTabNavigator() {
         ),
       })}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Schedule" component={ScheduleStackNavigator} />
-      <Tab.Screen name="Meds" component={MedicineScreen} />
+      <Tab.Screen name="Schedule" component={ScheduleStackNavigator}
+        options={({navigation}) => ({
+          tabBarStyle: navigation.getState().routes[navigation.getState().index]?.state?.index > 0
+            ? {display: 'none'} : {backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f3f4f6', height: 64, paddingBottom: 8, paddingTop: 4},
+        })}
+      />
+      <Tab.Screen name="Meds" component={MedsStackNavigator}
+        options={({navigation}) => ({
+          tabBarStyle: navigation.getState().routes[navigation.getState().index]?.state?.index > 0
+            ? {display: 'none'} : {backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f3f4f6', height: 64, paddingBottom: 8, paddingTop: 4},
+        })}
+      />
       <Tab.Screen name="Reports" component={CheckupScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
