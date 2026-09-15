@@ -4,6 +4,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import MedicineScreen from '../screens/MedicineScreen';
 import CheckupScreen from '../screens/CheckupScreen';
+import ScheduleStackNavigator from './ScheduleStackNavigator';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 
@@ -79,7 +80,7 @@ export default function BottomTabNavigator() {
         ),
       })}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Schedule" component={ScheduleScreen} />
+      <Tab.Screen name="Schedule" component={ScheduleStackNavigator} />
       <Tab.Screen name="Meds" component={MedicineScreen} />
       <Tab.Screen name="Reports" component={CheckupScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
