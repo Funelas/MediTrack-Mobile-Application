@@ -277,7 +277,7 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
                 borderColor: '#14B8A6', backgroundColor: '#F0FDFA',
               }} />
             )}
-            <View style={{marginBottom: 8, opacity: isActive ? 0.3 : 1}} {...pr.panHandlers}>
+            <View style={{marginBottom: 8, opacity: isActive ? 0 : 1, height: isActive ? 0 : undefined, overflow: 'hidden'}} {...pr.panHandlers}>
               <FieldRow field={field} />
             </View>
             {showGhostAfter && (
