@@ -2,11 +2,12 @@ import React, {useState, useRef} from 'react';
 import {
   View, Text, SafeAreaView, TouchableOpacity,
   TextInput, ScrollView, Switch, Modal,
-  PanResponder, Platform, UIManager,
+  PanResponder, Animated, Platform, UIManager,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)
   UIManager.setLayoutAnimationEnabledExperimental(false);
+
 import {useNavigation} from '@react-navigation/native';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
 
@@ -36,9 +37,7 @@ const ICON_OPTIONS: CategoryIconKey[] = [
 ];
 
 // --- Add Field Modal ---
-function AddFieldModal({
-  visible, onClose, onAdd,
-}: {
+function AddFieldModal({visible, onClose, onAdd}: {
   visible: boolean;
   onClose: () => void;
   onAdd: (field: Field) => void;
@@ -59,8 +58,7 @@ function AddFieldModal({
     if (!name.trim()) return;
     onAdd({
       id: Date.now().toString(),
-      name: name.trim(),
-      type,
+      name: name.trim(), type,
       unit: unit.trim() || undefined,
       referenceFrom: refFrom.trim() || undefined,
       referenceTo: refTo.trim() || undefined,
@@ -78,10 +76,8 @@ function AddFieldModal({
         style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
           <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8">
-            {/* Header */}
             <Text className="text-gray-800 font-bold text-base mb-4">Add Fields</Text>
 
-            {/* Field Name */}
             <Text className="text-gray-700 text-sm font-medium mb-1">Fields Name</Text>
             <Text className="text-gray-400 text-xs mb-2">Enter the name of this field</Text>
             <TextInput
@@ -92,7 +88,6 @@ function AddFieldModal({
               className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm mb-4"
             />
 
-            {/* Field Type */}
             <Text className="text-gray-700 text-sm font-medium mb-2">Fields Type</Text>
             <View className="flex-row gap-3 mb-4">
               {(['numerical', 'description'] as FieldType[]).map(t => (
@@ -104,14 +99,13 @@ function AddFieldModal({
                     backgroundColor: type === t ? '#F3F0FF' : 'transparent',
                     borderColor: type === t ? '#8B5CF6' : '#E5E7EB',
                   }}>
-                  <Text style={{color: type === t ? '#8B5CF6' : '#6B7280'}} className="text-sm font-medium capitalize">
+                  <Text style={{color: type === t ? '#8B5CF6' : '#6B7280'}} className="text-sm font-medium">
                     {t === 'numerical' ? 'Numerical' : 'Description'}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* Numerical-only fields */}
             {type === 'numerical' && (
               <>
                 <Text className="text-gray-700 text-sm font-medium mb-1">Unit <Text className="text-gray-400 font-normal">(Optional)</Text></Text>
@@ -145,7 +139,6 @@ function AddFieldModal({
               </>
             )}
 
-            {/* Allow Note */}
             <View className="flex-row items-center justify-between mb-5">
               <View className="flex-1">
                 <Text className="text-gray-700 text-sm font-medium">Allow additional note <Text className="text-gray-400 font-normal">(Optional)</Text></Text>
@@ -159,10 +152,7 @@ function AddFieldModal({
               />
             </View>
 
-            {/* Add Button */}
-            <TouchableOpacity
-              onPress={handleAdd}
-              className="bg-teal-500 rounded-2xl py-4 items-center">
+            <TouchableOpacity onPress={handleAdd} className="bg-teal-500 rounded-2xl py-4 items-center">
               <Text className="text-white font-semibold text-base">Add Field</Text>
             </TouchableOpacity>
           </View>
@@ -212,6 +202,9 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
   const ghostRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [ghostIndex, setGhostIndex] = useState<number | null>(null);
+  const dragY = useRef(new Animated.Value(0)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
+  const cardTopRef = useRef(0);
 
   const panResponders = useRef<{[key: number]: ReturnType<typeof PanResponder.create>}>({});
   const prevLengthRef = useRef(fields.length);
@@ -228,9 +221,14 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
       onPanResponderGrant: () => {
         activeRef.current = index;
         ghostRef.current = index;
+        cardTopRef.current = index * ROW_HEIGHT;
+        dragY.setValue(0);
+        dragX.setValue(0);
         setTimeout(() => { setActiveIndex(index); setGhostIndex(index); }, 0);
       },
       onPanResponderMove: (_, gs) => {
+        dragY.setValue(gs.dy);
+        dragX.setValue(gs.dx);
         const next = Math.max(0, Math.min(
           fieldsRef.current.length - 1,
           index + Math.round(gs.dy / ROW_HEIGHT),
@@ -243,6 +241,8 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
       onPanResponderRelease: () => {
         const from = activeRef.current!;
         const to = ghostRef.current!;
+        dragY.setValue(0);
+        dragX.setValue(0);
         activeRef.current = null;
         ghostRef.current = null;
         setActiveIndex(null);
@@ -258,19 +258,15 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
     return panResponders.current[index];
   };
 
+  const activeField = activeIndex !== null ? fields[activeIndex] : null;
+
   return (
     <View style={{marginBottom: 16}}>
       {fields.map((field, index) => {
         const isActive = activeIndex === index;
         const pr = getPanResponder(index);
-
-        // Render blank placeholder at ghost target position
-        const showGhostBefore = ghostIndex === index
-          && activeIndex !== null
-          && ghostIndex < activeIndex!;
-        const showGhostAfter = ghostIndex === index
-          && activeIndex !== null
-          && ghostIndex > activeIndex!;
+        const showGhostBefore = ghostIndex === index && activeIndex !== null && ghostIndex < activeIndex!;
+        const showGhostAfter = ghostIndex === index && activeIndex !== null && ghostIndex > activeIndex!;
 
         return (
           <View key={field.id}>
@@ -281,9 +277,7 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
                 borderColor: '#14B8A6', backgroundColor: '#F0FDFA',
               }} />
             )}
-            <View
-              style={{marginBottom: 8, opacity: isActive ? 0.3 : 1}}
-              {...pr.panHandlers}>
+            <View style={{marginBottom: 8, opacity: isActive ? 0.3 : 1}} {...pr.panHandlers}>
               <FieldRow field={field} />
             </View>
             {showGhostAfter && (
@@ -296,17 +290,37 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
           </View>
         );
       })}
+
+      {/* Floating copy that follows the finger */}
+      {activeField && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: cardTopRef.current,
+            transform: [{translateY: dragY}, {translateX: dragX}],
+            zIndex: 999,
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOffset: {width: 0, height: 6},
+            shadowOpacity: 0.2,
+            shadowRadius: 8,
+          }}>
+          <FieldRow field={activeField} dotColor="#14B8A6" borderColor="#14B8A6" bgColor="#F0FDFA" />
+        </Animated.View>
+      )}
     </View>
   );
 }
-function StepCreate({
-  data, setData, onContinue,
-}: {
+
+// --- Step 1: Create Category ---
+function StepCreate({data, setData, onContinue}: {
   data: any; setData: (d: any) => void; onContinue: () => void;
 }) {
   return (
     <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4">
-      {/* Category Name */}
       <Text className="text-gray-800 font-bold text-sm mt-4 mb-1">Category Name</Text>
       <Text className="text-gray-400 text-xs mb-2">Enter a name for this checkup category.</Text>
       <TextInput
@@ -317,7 +331,6 @@ function StepCreate({
         className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm mb-5"
       />
 
-      {/* Choose Icon */}
       <Text className="text-gray-800 font-bold text-sm mb-1">Choose Icon</Text>
       <Text className="text-gray-400 text-xs mb-3">Select an icon that represents this category.</Text>
       <View className="flex-row flex-wrap gap-3 mb-5">
@@ -338,7 +351,6 @@ function StepCreate({
         })}
       </View>
 
-      {/* Choose Color */}
       <Text className="text-gray-800 font-bold text-sm mb-1">Choose Color</Text>
       <Text className="text-gray-400 text-xs mb-3">Select a color for this category</Text>
       <View className="flex-row gap-3 mb-8 flex-wrap">
@@ -356,10 +368,7 @@ function StepCreate({
         </TouchableOpacity>
       </View>
 
-      {/* Continue */}
-      <TouchableOpacity
-        onPress={onContinue}
-        className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
+      <TouchableOpacity onPress={onContinue} className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
         <Text className="text-white font-semibold text-base">Continue</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -367,9 +376,7 @@ function StepCreate({
 }
 
 // --- Step 2: Add Fields ---
-function StepFields({
-  fields, setFields, onContinue,
-}: {
+function StepFields({fields, setFields, onContinue}: {
   fields: Field[]; setFields: (f: Field[]) => void; onContinue: () => void;
 }) {
   const [showModal, setShowModal] = useState(false);
@@ -382,7 +389,6 @@ function StepFields({
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         <DraggableFieldList fields={fields} setFields={setFields} />
 
-        {/* Add Field Button */}
         <TouchableOpacity
           onPress={() => setShowModal(true)}
           className="flex-row items-center justify-center gap-2 border border-gray-200 rounded-2xl py-4 mb-4">
@@ -393,11 +399,8 @@ function StepFields({
         <View className="h-24" />
       </ScrollView>
 
-      {/* Continue */}
       <View className="py-4 border-t border-gray-100">
-        <TouchableOpacity
-          onPress={onContinue}
-          className="bg-teal-500 rounded-2xl py-4 items-center">
+        <TouchableOpacity onPress={onContinue} className="bg-teal-500 rounded-2xl py-4 items-center">
           <Text className="text-white font-semibold text-base">Continue</Text>
         </TouchableOpacity>
       </View>
@@ -412,15 +415,12 @@ function StepFields({
 }
 
 // --- Step 3: Review ---
-function StepReview({
-  categoryData, fields, onContinue,
-}: {
+function StepReview({categoryData, fields, onContinue}: {
   categoryData: any; fields: Field[]; onContinue: () => void;
 }) {
   return (
     <View className="flex-1 px-4">
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        {/* Category Card */}
         <View className="bg-white border border-gray-200 rounded-2xl px-4 py-4 mt-4 mb-5 flex-row items-center gap-3">
           <View
             className="w-12 h-12 rounded-2xl items-center justify-center"
@@ -436,18 +436,14 @@ function StepReview({
           </View>
         </View>
 
-        {/* Fields */}
         <Text className="text-gray-800 font-bold text-sm mb-1">Fields ({fields.length})</Text>
         <Text className="text-gray-400 text-xs mb-3">The following are the fields you plan to add under this category.</Text>
         <DraggableFieldList fields={fields} setFields={() => {}} />
         <View className="h-24" />
       </ScrollView>
 
-      {/* Continue */}
       <View className="py-4 border-t border-gray-100">
-        <TouchableOpacity
-          onPress={onContinue}
-          className="bg-teal-500 rounded-2xl py-4 items-center">
+        <TouchableOpacity onPress={onContinue} className="bg-teal-500 rounded-2xl py-4 items-center">
           <Text className="text-white font-semibold text-base">Continue</Text>
         </TouchableOpacity>
       </View>
@@ -473,7 +469,6 @@ export default function CreateCategoryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white">
-      {/* Header */}
       <View className="flex-row items-center px-4 pt-10 pb-3 border-b border-gray-100">
         <TouchableOpacity onPress={handleBack} className="p-2 mr-2">
           <Text className="text-gray-600 text-xl">‹</Text>
@@ -483,27 +478,9 @@ export default function CreateCategoryScreen() {
         </Text>
       </View>
 
-      {step === 1 && (
-        <StepCreate
-          data={categoryData}
-          setData={setCategoryData}
-          onContinue={() => setStep(2)}
-        />
-      )}
-      {step === 2 && (
-        <StepFields
-          fields={fields}
-          setFields={setFields}
-          onContinue={() => setStep(3)}
-        />
-      )}
-      {step === 3 && (
-        <StepReview
-          categoryData={categoryData}
-          fields={fields}
-          onContinue={() => navigation.goBack()}
-        />
-      )}
+      {step === 1 && <StepCreate data={categoryData} setData={setCategoryData} onContinue={() => setStep(2)} />}
+      {step === 2 && <StepFields fields={fields} setFields={setFields} onContinue={() => setStep(3)} />}
+      {step === 3 && <StepReview categoryData={categoryData} fields={fields} onContinue={() => navigation.goBack()} />}
     </SafeAreaView>
   );
 }
