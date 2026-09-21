@@ -8,7 +8,8 @@ import {
   Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
+import CategoryIconPickerModal, {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
+import Calendar from '../assets/svg_icons/calendar.svg';
 // --- Types ---
 type ResultStatus = 'normal' | 'high' | 'low';
 
@@ -30,6 +31,7 @@ interface TestItem {
 interface Category {
   id: string;
   label: string;
+  icon: CategoryIconKey;
   tests: TestItem[];
 }
 
@@ -38,6 +40,7 @@ const categories: Category[] = [
   {
     id: 'clinical',
     label: 'Clinical Chemistry',
+    icon: 'flask',
     tests: [
       {
         id: 'hba1c', name: 'HbA1C', unit: '%',
@@ -114,6 +117,7 @@ const categories: Category[] = [
   {
     id: 'cbc',
     label: 'CBC',
+    icon: 'cell',
     tests: [
       {
         id: 'wbc', name: 'WBC', unit: 'x10³/µL',
@@ -255,6 +259,7 @@ function TestCard({test, filteredDates}: {test: TestItem; filteredDates: Date[]}
 export default function CheckupScreen() {
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
   const [fromDate, setFromDate] = useState(new Date(2026, 1, 8));
   const [toDate, setToDate] = useState(new Date(2026, 6, 15));
   const [showFromPicker, setShowFromPicker] = useState(false);
@@ -293,7 +298,10 @@ export default function CheckupScreen() {
             <TouchableOpacity
               onPress={() => setShowCategoryDropdown(v => !v)}
               className="flex-row items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3">
-              <Text className="text-gray-700 text-sm font-medium">{selectedCategory.label}</Text>
+              <View className="flex-row items-center gap-2">
+                <CategoryIcon iconKey={selectedCategory.icon} size={18} color="#14B8A6" />
+                <Text className="text-gray-700 text-sm font-medium">{selectedCategory.label}</Text>
+              </View>
               <Text className="text-gray-400">{showCategoryDropdown ? '▲' : '▼'}</Text>
             </TouchableOpacity>
             {showCategoryDropdown && (
@@ -305,7 +313,8 @@ export default function CheckupScreen() {
                   <TouchableOpacity
                     key={cat.id}
                     onPress={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
-                    className={`px-4 py-3 ${selectedCategory.id === cat.id ? 'bg-teal-50' : 'bg-white'} ${i < categories.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    className={`flex-row items-center gap-3 px-4 py-3 ${selectedCategory.id === cat.id ? 'bg-teal-50' : 'bg-white'} ${i < categories.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    <CategoryIcon iconKey={cat.icon} size={18} color={selectedCategory.id === cat.id ? '#14B8A6' : '#6B7280'} />
                     <Text className={`text-sm ${selectedCategory.id === cat.id ? 'text-teal-600 font-medium' : 'text-gray-700'}`}>
                       {cat.label}
                     </Text>
@@ -321,8 +330,8 @@ export default function CheckupScreen() {
               <Text className="text-gray-500 text-xs font-semibold uppercase mb-2">From</Text>
               <TouchableOpacity
                 onPress={() => setShowFromPicker(true)}
-                className="flex-row items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-3">
-                <Text className="text-gray-400">📅</Text>
+                className="flex-row items-center gap-x-2 bg-white border border-gray-200 rounded-xl px-3 py-3">
+                <Calendar width={20} height={20} color='black' />
                 <Text className="text-gray-600 text-sm">{formatDate(fromDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -330,8 +339,8 @@ export default function CheckupScreen() {
               <Text className="text-gray-500 text-xs font-semibold uppercase mb-2">To</Text>
               <TouchableOpacity
                 onPress={() => setShowToPicker(true)}
-                className="flex-row items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-3">
-                <Text className="text-gray-400">📅</Text>
+                className="flex-row items-center gap-x-2 bg-white border border-gray-200 rounded-xl px-3 py-3">
+                <Calendar width={20} height={20} color='black' />
                 <Text className="text-gray-600 text-sm">{formatDate(toDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -429,6 +438,13 @@ export default function CheckupScreen() {
           <View className="h-24" />
         </View>
       </ScrollView>
+
+      <CategoryIconPickerModal
+        visible={showIconPicker}
+        selected={selectedCategory.icon}
+        onSelect={() => {}}
+        onClose={() => setShowIconPicker(false)}
+      />
     </SafeAreaView>
   );
 }
