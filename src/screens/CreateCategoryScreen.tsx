@@ -2,7 +2,7 @@ import React, {useState, useRef} from 'react';
 import {
   View, Text, SafeAreaView, TouchableOpacity,
   TextInput, ScrollView, Switch, Modal,
-  PanResponder, Animated, Platform, UIManager,
+  PanResponder, Platform, UIManager,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)
@@ -203,59 +203,50 @@ function FieldRow({field, dotColor = '#9ca3af', borderColor = '#E5E7EB', bgColor
 }
 
 function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f: Field[]) => void}) {
-  const activeRef = useRef<number | null>(null);
-  const ghostRef = useRef<number | null>(null);
   const fieldsRef = useRef(fields);
   const setFieldsRef = useRef(setFields);
-  const dragY = useRef(new Animated.Value(0)).current;
-  const dragX = useRef(new Animated.Value(0)).current;
-  const activeIndexState = useRef(new Animated.Value(-1)).current;
-  const [renderKey, setRenderKey] = useState(0);
-  const activeIndexDisplay = useRef<number | null>(null);
-  const ghostIndexDisplay = useRef<number | null>(null);
-
   fieldsRef.current = fields;
   setFieldsRef.current = setFields;
 
-  const calcGhost = (dy: number, from: number) =>
-    Math.max(0, Math.min(fieldsRef.current.length - 1, from + Math.round(dy / ROW_HEIGHT)));
+  const activeRef = useRef<number | null>(null);
+  const ghostRef = useRef<number | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [ghostIndex, setGhostIndex] = useState<number | null>(null);
 
-  // Create one PanResponder per index slot, stable across renders
-  const panResponders = useRef<ReturnType<typeof PanResponder.create>[]>([]);
+  const panResponders = useRef<{[key: number]: ReturnType<typeof PanResponder.create>}>({});
+  const prevLengthRef = useRef(fields.length);
+  if (prevLengthRef.current !== fields.length) {
+    panResponders.current = {};
+    prevLengthRef.current = fields.length;
+  }
 
-  const buildPanResponder = (index: number) =>
-    PanResponder.create({
+  const getPanResponder = (index: number) => {
+    if (panResponders.current[index]) return panResponders.current[index];
+    panResponders.current[index] = PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
         activeRef.current = index;
         ghostRef.current = index;
-        activeIndexDisplay.current = index;
-        ghostIndexDisplay.current = index;
-        dragY.setValue(0);
-        dragX.setValue(0);
-        setRenderKey(k => k + 1);
+        setTimeout(() => { setActiveIndex(index); setGhostIndex(index); }, 0);
       },
       onPanResponderMove: (_, gs) => {
-        dragY.setValue(gs.dy);
-        dragX.setValue(gs.dx);
-        const next = calcGhost(gs.dy, activeRef.current!);
+        const next = Math.max(0, Math.min(
+          fieldsRef.current.length - 1,
+          index + Math.round(gs.dy / ROW_HEIGHT),
+        ));
         if (next !== ghostRef.current) {
           ghostRef.current = next;
-          ghostIndexDisplay.current = next;
-          setRenderKey(k => k + 1);
+          setGhostIndex(next);
         }
       },
       onPanResponderRelease: () => {
         const from = activeRef.current!;
         const to = ghostRef.current!;
-        dragY.setValue(0);
-        dragX.setValue(0);
         activeRef.current = null;
         ghostRef.current = null;
-        activeIndexDisplay.current = null;
-        ghostIndexDisplay.current = null;
-        setRenderKey(k => k + 1);
+        setActiveIndex(null);
+        setGhostIndex(null);
         if (from !== to) {
           const reordered = [...fieldsRef.current];
           const [moved] = reordered.splice(from, 1);
@@ -264,58 +255,45 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
         }
       },
     });
-
-  // Rebuild only when field count changes
-  if (panResponders.current.length !== fields.length) {
-    panResponders.current = fields.map((_, i) => buildPanResponder(i));
-  }
-
-  const getShift = (index: number): number => {
-    const active = activeIndexDisplay.current;
-    const ghost = ghostIndexDisplay.current;
-    if (active === null || ghost === null || index === active) return 0;
-    if (active < ghost && index > active && index <= ghost) return -ROW_HEIGHT;
-    if (active > ghost && index < active && index >= ghost) return ROW_HEIGHT;
-    return 0;
+    return panResponders.current[index];
   };
 
   return (
     <View style={{marginBottom: 16}}>
       {fields.map((field, index) => {
-        const isActive = activeIndexDisplay.current === index;
-        const shift = getShift(index);
-        const pr = panResponders.current[index];
+        const isActive = activeIndex === index;
+        const pr = getPanResponder(index);
 
-        if (isActive) {
-          return (
-            <View key={field.id} style={{height: ROW_HEIGHT, marginBottom: 8}}>
-              <View style={{
-                position: 'absolute', left: 0, right: 0, height: ROW_HEIGHT - 8,
-                borderRadius: 16, borderWidth: 2, borderStyle: 'dashed',
-                borderColor: '#14B8A6', backgroundColor: '#F0FDFA', opacity: 0.5,
-              }} />
-              <Animated.View
-                {...pr.panHandlers}
-                style={{
-                  position: 'absolute', left: 0, right: 0,
-                  transform: [{translateY: dragY}, {translateX: dragX}],
-                  zIndex: 999, elevation: 8,
-                  shadowColor: '#000', shadowOffset: {width: 0, height: 6},
-                  shadowOpacity: 0.18, shadowRadius: 8,
-                }}>
-                <FieldRow field={field} dotColor="#14B8A6" borderColor="#14B8A6" bgColor="#F0FDFA" />
-              </Animated.View>
-            </View>
-          );
-        }
+        // Render blank placeholder at ghost target position
+        const showGhostBefore = ghostIndex === index
+          && activeIndex !== null
+          && ghostIndex < activeIndex!;
+        const showGhostAfter = ghostIndex === index
+          && activeIndex !== null
+          && ghostIndex > activeIndex!;
 
         return (
-          <Animated.View
-            key={field.id}
-            {...pr.panHandlers}
-            style={{marginBottom: 8, transform: [{translateY: shift}]}}>
-            <FieldRow field={field} />
-          </Animated.View>
+          <View key={field.id}>
+            {showGhostBefore && (
+              <View style={{
+                height: ROW_HEIGHT - 8, marginBottom: 8,
+                borderRadius: 16, borderWidth: 2, borderStyle: 'dashed',
+                borderColor: '#14B8A6', backgroundColor: '#F0FDFA',
+              }} />
+            )}
+            <View
+              style={{marginBottom: 8, opacity: isActive ? 0.3 : 1}}
+              {...pr.panHandlers}>
+              <FieldRow field={field} />
+            </View>
+            {showGhostAfter && (
+              <View style={{
+                height: ROW_HEIGHT - 8, marginBottom: 8,
+                borderRadius: 16, borderWidth: 2, borderStyle: 'dashed',
+                borderColor: '#14B8A6', backgroundColor: '#F0FDFA',
+              }} />
+            )}
+          </View>
         );
       })}
     </View>
