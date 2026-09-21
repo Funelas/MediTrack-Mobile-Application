@@ -7,8 +7,12 @@ import {
   SafeAreaView,
   Platform,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
+import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import CategoryIconPickerModal, {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
+import FloatingAddButton from '../components/FloatingAddButton';
 import Calendar from '../assets/svg_icons/calendar.svg';
 // --- Types ---
 type ResultStatus = 'normal' | 'high' | 'low';
@@ -257,6 +261,7 @@ function TestCard({test, filteredDates}: {test: TestItem; filteredDates: Date[]}
 }
 
 export default function CheckupScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<ReportsStackParamList>>();
   const [selectedCategory, setSelectedCategory] = useState(categories[0]);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -445,6 +450,7 @@ export default function CheckupScreen() {
         onSelect={() => {}}
         onClose={() => setShowIconPicker(false)}
       />
+      <FloatingAddButton onPress={() => navigation.navigate('AddCheckupReport')} />
     </SafeAreaView>
   );
 }
