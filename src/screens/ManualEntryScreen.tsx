@@ -7,7 +7,7 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
-
+import Calendar from '../assets/svg_icons/calendar.svg';
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
 type Route = RouteProp<ReportsStackParamList, 'ManualEntry'>;
 
@@ -94,7 +94,7 @@ export default function ManualEntryScreen() {
         <TouchableOpacity
           onPress={() => setShowDatePicker(true)}
           className="flex-row items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 mb-4">
-          <Text className="text-gray-400">📅</Text>
+          <Calendar width={20} height={20} color='black'/>
           <Text className="text-gray-700 text-sm">{formatDate(date)}</Text>
         </TouchableOpacity>
 

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import ScheduleSkeleton from '../components/ScheduleSkeleton';
 import AddToScheduleModal from '../components/AddToScheduleModal';
@@ -46,6 +47,7 @@ function getWeekDates(date: Date): Date[] {
 
 export default function ScheduleScreen() {
   const today = new Date();
+  const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<'Month' | 'Week'>('Month');
   const [displayedTab, setDisplayedTab] = useState<'Month' | 'Week'>('Month');
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
@@ -120,7 +122,11 @@ export default function ScheduleScreen() {
 
   const ScheduleItem = ({item, id, showDivider}: {item: typeof scheduleItems[0]; id: string; showDivider: boolean}) => (
     <View>
-      <View className="flex-row items-center px-4 py-3 gap-3">
+      <TouchableOpacity
+        onPress={() => item.type === 'med'
+          ? navigation.navigate('MedicineDetail', {id: item.id})
+          : navigation.navigate('ScheduleDetail', {id: item.id, type: item.type})}
+        className="flex-row items-center px-4 py-3 gap-3">
         <View className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? '' : 'bg-transparent'}`}
           style={item.type === 'appointment' ? {backgroundColor: item.color} : undefined} />
         <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
@@ -134,7 +140,7 @@ export default function ScheduleScreen() {
           className={`w-6 h-6 rounded-full border-2 items-center justify-center ${checked.includes(id) ? 'bg-teal-500 border-teal-500' : 'border-gray-300'}`}>
           {checked.includes(id) && <Text className="text-white text-xs font-bold">✓</Text>}
         </TouchableOpacity>
-      </View>
+      </TouchableOpacity>
       {showDivider && <View className="h-px bg-gray-100 ml-4" />}
     </View>
   );
