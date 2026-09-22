@@ -71,6 +71,11 @@ export default function AddCheckupReportScreen() {
           {filtered.map(cat => (
             <TouchableOpacity
               key={cat.id}
+              onPress={() => navigation.navigate('InputMethod', {
+                categoryId: cat.id,
+                categoryLabel: cat.label,
+                categoryIcon: cat.icon,
+              })}
               className="flex-row items-center justify-between bg-white border border-gray-200 rounded-2xl px-4 py-4">
               <View className="flex-row items-center gap-3">
                 <View className="w-9 h-9 rounded-xl bg-gray-100 items-center justify-center">

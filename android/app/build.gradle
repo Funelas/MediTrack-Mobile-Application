@@ -10,6 +10,15 @@ android {
     namespace "com.meditrack"
     compileSdkVersion rootProject.ext.compileSdkVersion
 
+    signingConfigs {
+        release {
+            storeFile file(MYAPP_UPLOAD_STORE_FILE)
+            storePassword MYAPP_UPLOAD_STORE_PASSWORD
+            keyAlias MYAPP_UPLOAD_KEY_ALIAS
+            keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+        }
+    }
+
     defaultConfig {
         applicationId "com.meditrack"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -25,7 +34,7 @@ android {
         release {
             minifyEnabled true
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
 }

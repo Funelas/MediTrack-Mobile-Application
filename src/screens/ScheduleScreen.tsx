@@ -153,21 +153,21 @@ export default function ScheduleScreen() {
         <View className="px-4 mt-4">
 
           {/* Month / Week Toggle + Filters */}
-          <View className="flex-row justify-between items-center mb-4">
+          <View className="flex-row justify-between items-center mb-4 gap-3">
             <View className="flex-row bg-white rounded-xl p-1">
               {(['Month', 'Week'] as const).map(tab => (
                 <TouchableOpacity
                   key={tab}
                   onPress={() => switchTab(tab)}
-                  className={`px-5 py-2 rounded-lg ${displayedTab === tab ? 'bg-teal-500' : ''}`}>
+                  className={`px-4 py-2 rounded-lg ${displayedTab === tab ? 'bg-teal-500' : ''}`}>
                   <Text className={`text-sm font-medium ${displayedTab === tab ? 'text-white' : 'text-gray-500'}`}>
                     {tab}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-            <TouchableOpacity className="flex-row items-center justify-around bg-white py-2 px-4 w-[18%] rounded-xl">
-              <Filter width={25} height={25} color='text-gray-600'/>
+            <TouchableOpacity className="flex-row items-center gap-1.5 bg-white py-2 px-3 rounded-xl">
+              <Filter width={18} height={18} color='#4B5563'/>
               <Text className="text-gray-600 text-sm font-medium">Filters</Text>
             </TouchableOpacity>
           </View>
