@@ -4,6 +4,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import MedsStackNavigator from './MedsStackNavigator';
 import MedicineScreen from '../screens/MedicineScreen';
+import ReportsStackNavigator from './ReportsStackNavigator';
 import CheckupScreen from '../screens/CheckupScreen';
 import ScheduleStackNavigator from './ScheduleStackNavigator';
 import ScheduleScreen from '../screens/ScheduleScreen';
@@ -93,7 +94,12 @@ export default function BottomTabNavigator() {
             ? {display: 'none'} : {backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f3f4f6', height: 64, paddingBottom: 8, paddingTop: 4},
         })}
       />
-      <Tab.Screen name="Reports" component={CheckupScreen} />
+      <Tab.Screen name="Reports" component={ReportsStackNavigator}
+        options={({navigation}) => ({
+          tabBarStyle: navigation.getState().routes[navigation.getState().index]?.state?.index > 0
+            ? {display: 'none'} : {backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f3f4f6', height: 64, paddingBottom: 8, paddingTop: 4},
+        })}
+      />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
