@@ -138,6 +138,7 @@ export default function MedicineScreen() {
           {filtered.map(med => (
             <TouchableOpacity
               key={med.id}
+              onPress={() => navigation.navigate('MedicineDetail', {id: med.id})}
               className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
 
               {/* Top Row: Icon + Name + Intake/Frequency */}

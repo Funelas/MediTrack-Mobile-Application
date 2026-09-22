@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import ColorPicker from 'react-native-wheel-color-picker';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import RadioSelectModal from '../components/RadioSelectModal';
 import CustomRepeatModal from '../components/CustomRepeatModal';
@@ -542,6 +542,8 @@ import Download from '../assets/svg_icons/download.svg';
 // Main Screen
 export default function AddMedicineScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const isEdit = !!route.params?.id;
   const [step, setStep] = useState(1);
 
   const [step1, setStep1] = useState({
@@ -568,7 +570,7 @@ export default function AddMedicineScreen() {
           <Text className="text-gray-600 text-xl">‹</Text>
         </TouchableOpacity>
         <Text className="flex-1 text-center text-gray-800 text-base font-semibold mr-8">
-          Add Medicine
+          {isEdit ? 'Edit Medicine' : 'Add Medicine'}
         </Text>
       </View>
 
@@ -596,7 +598,7 @@ export default function AddMedicineScreen() {
           onPress={step === 4 ? () => navigation.goBack() : handleNext}
           className="flex-1 bg-teal-500 rounded-2xl py-4 items-center">
           <Text className="text-white font-semibold text-base">
-            {step === 4 ? 'Save Medicine' : 'Next'}
+            {step === 4 ? (isEdit ? 'Save Changes' : 'Save Medicine') : 'Next'}
           </Text>
         </TouchableOpacity>
       </View>
