@@ -7,8 +7,10 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
+  Alert,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {addSchedule} from '../database/services';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import RadioSelectModal from '../components/RadioSelectModal';
 import CustomRepeatModal from '../components/CustomRepeatModal';
@@ -50,6 +52,29 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
       setShowCustomRepeat(true);
     } else {
       setRepeat(value);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert('Required', `Please enter a ${isAppointment ? 'appointment' : 'reminder'} name.`);
+      return;
+    }
+    try {
+      await addSchedule({
+        title: name.trim(),
+        type,
+        date,
+        time,
+        repeat,
+        reminder,
+        notes,
+        doctorClinic,
+        location,
+      });
+      navigation.goBack();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save. Please try again.');
     }
   };
 
@@ -165,7 +190,7 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
         />
 
         {/* Save Button */}
-        <TouchableOpacity className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
+        <TouchableOpacity onPress={handleSave} className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
           <Text className="text-white font-semibold text-base">{saveLabel}</Text>
         </TouchableOpacity>
 

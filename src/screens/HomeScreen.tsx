@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useCallback, useState} from 'react';
 import {
   View,
   Text,
@@ -15,20 +15,14 @@ import Heart from "../assets/svg_icons/heart.svg"
 import Clock from "../assets/svg_icons/clock.svg"
 import Check from "../assets/svg_icons/check.svg"
 import CircularProgress from '../components/CircularProgress';
+import {useFocusEffect} from '@react-navigation/native';
+import {getSchedules} from '../database/services';
+import Schedule from '../database/models/Schedule';
 const nextMedication = {
   name: 'Metformin 500g',
   time: '9:00 AM',
   minsLeft: 12,
 };
-
-const scheduleItems = [
-  {id: '1', time: '9:00 AM', label: 'Metformin 500g', status: 'inprogress', icon: (size: number) => <Pills width={size} height={size} color="#787878"/>},
-  {id: '2', time: '1:00 PM', label: 'Check Blood Pressure', status: 'inprogress', icon: (size: number) => <Bell width={size} height={size} color="#787878"/>},
-  {id: '3', time: '3:00 PM', label: "Doctor's Appointment", status: 'inprogress', icon: (size: number) => <Calendar width={size} height={size} color="#787878"/>},
-  {id: '4', time: '5:00 PM', label: 'Restock Medicine', status: 'inprogress', icon: (size: number) => <Bell width={size} height={size} color="#787878"/>},
-  {id: '5', time: '9:00 PM', label: 'Atorvastatin 10mg', status: 'inprogress', icon: (size: number) => <Pills width={size} height={size} color="#787878"/>},
-  {id: '6', time: '8:00 AM', label: 'Amlodipine 10mg', status: 'done', icon: (size: number) => <Pills width={size} height={size} color="#139880"/>},
-];
 
 const healthSummary = {
   status: 'Good',
@@ -38,13 +32,42 @@ const healthSummary = {
   needsAttention: ['SGPT (ALT)', 'SGOT (AST)'],
 };
 
+function getScheduleIcon(item: Schedule, size: number) {
+  if (item.type === 'appointment') return <Calendar width={size} height={size} color={item.isDone ? '#139880' : '#787878'} />;
+  return <Bell width={size} height={size} color={item.isDone ? '#139880' : '#787878'} />;
+}
+
 export default function HomeScreen() {
   const {width} = useWindowDimensions();
-  const scale = width / 390; // baseline 390px (standard phone width)
+  const scale = width / 390;
   const s = (size: number) => Math.round(size * scale);
   const iconSm = s(12);
   const iconMd = s(20);
   const iconLg = s(35);
+
+  const [todaySchedules, setTodaySchedules] = useState<Schedule[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadSchedules = async () => {
+        const all = await getSchedules();
+        const today = new Date();
+        const filtered = all.filter(item => {
+          const d = new Date(item.date);
+          return (
+            d.getFullYear() === today.getFullYear() &&
+            d.getMonth() === today.getMonth() &&
+            d.getDate() === today.getDate()
+          );
+        });
+        filtered.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+        setTodaySchedules(filtered);
+      };
+      loadSchedules();
+    }, [])
+  );
+
+  const doneCount = todaySchedules.filter(s => s.isDone).length;
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -104,32 +127,33 @@ export default function HomeScreen() {
             <View className="flex-row justify-between items-center mb-3">
               <Text className="text-gray-800 font-semibold text-base">
                 Today's Schedule{' '}
-                <Text className="text-gray-400 font-normal text-sm">(1/6 taken)</Text>
+                <Text className="text-gray-400 font-normal text-sm">({doneCount}/{todaySchedules.length} done)</Text>
               </Text>
               <TouchableOpacity>
                 <Text className="text-teal-500 text-sm font-medium">View All</Text>
               </TouchableOpacity>
             </View>
 
-            {scheduleItems.map((item, index) => (
-              <View key={item.id} className={`border rounded-xl border-1 my-1 p-1 ${item.status === 'done' ? 'border-[#C2DDD8] bg-[#DBE7E5]' : 'border-gray-200 bg-white'}`}>
-                <View className="flex-row items-center py-3 gap-3">
-                  <View className={`w-7 h-7 border border-1 rounded-full flex justify-center items-center ${item.status === 'done' ? 'border-[#139880] bg-[#C2DDD8]' : 'border-[#787878] bg-transparent'}`}>
-                    {item.status === 'done' ? <Check width={iconSm} height={iconSm} color='#139880'/> : ''}
-                  </View>
+            {todaySchedules.length === 0 && (
+              <Text className="text-gray-400 text-sm text-center py-4">No schedules for today.</Text>
+            )}
 
-                  {item.icon(iconMd)}
-                  
-                  <Text className="text-gray-400 text-sm w-16">{item.time}</Text>
-                  <Text className="flex-1 text-gray-800 text-sm font-medium">
-                    {item.label}
+            {todaySchedules.map((item, index) => (
+              <View key={item.id} className={`border rounded-xl border-1 my-1 p-1 ${item.isDone ? 'border-[#C2DDD8] bg-[#DBE7E5]' : 'border-gray-200 bg-white'}`}>
+                <View className="flex-row items-center py-3 gap-3">
+                  <View className={`w-7 h-7 border border-1 rounded-full flex justify-center items-center ${item.isDone ? 'border-[#139880] bg-[#C2DDD8]' : 'border-[#787878] bg-transparent'}`}>
+                    {item.isDone ? <Check width={iconSm} height={iconSm} color='#139880'/> : ''}
+                  </View>
+                  {getScheduleIcon(item, iconMd)}
+                  <Text className="text-gray-400 text-sm w-16">
+                    {new Date(item.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true})}
                   </Text>
-                  {/* Arrow placeholder */}
+                  <Text className="flex-1 text-gray-800 text-sm font-medium">{item.title}</Text>
                   <View style={{transform: [{rotate: '270deg'}]}}>
                     <Arrow width={20} height={20} />
                   </View>
                 </View>
-                {index < scheduleItems.length - 1 && (
+                {index < todaySchedules.length - 1 && (
                   <View className="h-px bg-gray-100" />
                 )}
               </View>
