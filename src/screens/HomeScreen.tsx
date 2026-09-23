@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import Bell from "../assets/svg_icons/bell.svg"
 import Arrow from "../assets/svg_icons/arrow.svg"
@@ -21,12 +22,12 @@ const nextMedication = {
 };
 
 const scheduleItems = [
-  {id: '1', time: '9:00 AM', label: 'Metformin 500g', status: 'inprogress', icon: <Pills width={35} height={35} color="#787878"/>},
-  {id: '2', time: '1:00 PM', label: 'Check Blood Pressure', status: 'inprogress', icon:<Bell width={35} height={35} color="#787878"/>},
-  {id: '3', time: '3:00 PM', label: "Doctor's Appointment", status: 'inprogress', icon: <Calendar width={35} height={35} color="#787878"/>},
-  {id: '4', time: '5:00 PM', label: 'Restock Medicine', status: 'inprogress', icon: <Bell width={35} height={35} color="#787878"/>},
-  {id: '5', time: '9:00 PM', label: 'Atorvastatin 10mg', status: 'inprogress', icon: <Pills width={35} height={35} color="#787878"/>},
-  {id: '6', time: '8:00 AM', label: 'Amlodipine 10mg', status: 'done', icon: <Pills width={35} height={35} color="#139880"/>}
+  {id: '1', time: '9:00 AM', label: 'Metformin 500g', status: 'inprogress', icon: (size: number) => <Pills width={size} height={size} color="#787878"/>},
+  {id: '2', time: '1:00 PM', label: 'Check Blood Pressure', status: 'inprogress', icon: (size: number) => <Bell width={size} height={size} color="#787878"/>},
+  {id: '3', time: '3:00 PM', label: "Doctor's Appointment", status: 'inprogress', icon: (size: number) => <Calendar width={size} height={size} color="#787878"/>},
+  {id: '4', time: '5:00 PM', label: 'Restock Medicine', status: 'inprogress', icon: (size: number) => <Bell width={size} height={size} color="#787878"/>},
+  {id: '5', time: '9:00 PM', label: 'Atorvastatin 10mg', status: 'inprogress', icon: (size: number) => <Pills width={size} height={size} color="#787878"/>},
+  {id: '6', time: '8:00 AM', label: 'Amlodipine 10mg', status: 'done', icon: (size: number) => <Pills width={size} height={size} color="#139880"/>},
 ];
 
 const healthSummary = {
@@ -38,6 +39,12 @@ const healthSummary = {
 };
 
 export default function HomeScreen() {
+  const {width} = useWindowDimensions();
+  const scale = width / 390; // baseline 390px (standard phone width)
+  const s = (size: number) => Math.round(size * scale);
+  const iconSm = s(12);
+  const iconMd = s(20);
+  const iconLg = s(35);
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -46,13 +53,13 @@ export default function HomeScreen() {
         <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
           <View className="flex-row justify-between items-center mb-4">
             <View className="flex-row items-center gap-2">
-              <Heart width={60} height={60} color="#FFFFFF" />
+              <Heart width={iconLg} height={iconLg} color="#FFFFFF" />
               <Text className="text-white text-2xl font-bold">
                 Medi<Text className="text-teal-200">Track</Text>
               </Text>
             </View>
             <View className='mr-2 rounded-full bg-[#BDCCDA] flex justify-center items-center p-1'>
-                <Bell width={36} height={36} color="#26292C"/>
+                <Bell width={s(28)} height={s(28)} color="#26292C"/>
             </View>
           </View>
           <Text className="text-white text-2xl font-bold">Welcome back, User!</Text>
@@ -71,7 +78,7 @@ export default function HomeScreen() {
             <View className="flex-row items-center gap-3">
               {/* Medicine icon placeholder */}
               <View className="w-12 h-12 bg-teal-100 rounded-xl flex justify-center items-center">
-                <Pills width={30} height={30} color="#0D9488" />
+                <Pills width={iconMd} height={iconMd} color="#0D9488" />
               </View>
               <View className="flex-1">
                 <View className="flex-row items-center gap-2">
@@ -80,7 +87,7 @@ export default function HomeScreen() {
                 </View>
                 <View className="flex-row items-center mt-1 gap-1">
                  
-                  <Clock width={18} height={18} color="#F15C5C"/>
+                  <Clock width={iconSm} height={iconSm} color="#F15C5C"/>
                   <Text className="text-orange-500 text-sm font-medium">
                     {nextMedication.minsLeft} mins
                   </Text>
@@ -107,11 +114,11 @@ export default function HomeScreen() {
             {scheduleItems.map((item, index) => (
               <View key={item.id} className={`border rounded-xl border-1 my-1 p-1 ${item.status === 'done' ? 'border-[#C2DDD8] bg-[#DBE7E5]' : 'border-gray-200 bg-white'}`}>
                 <View className="flex-row items-center py-3 gap-3">
-                  <View className={`w-8 h-8 border border-1  rounded-full  flex justify-center items-center ${item.status === 'done' ? 'border-[#139880] bg-[#C2DDD8]' : 'border-[#787878] bg-transparent'}`}>
-                    {item.status === 'done' ? <Check width={25} height={25} color='#139880'/> : ''}
+                  <View className={`w-7 h-7 border border-1 rounded-full flex justify-center items-center ${item.status === 'done' ? 'border-[#139880] bg-[#C2DDD8]' : 'border-[#787878] bg-transparent'}`}>
+                    {item.status === 'done' ? <Check width={iconSm} height={iconSm} color='#139880'/> : ''}
                   </View>
 
-                  {item.icon}
+                  {item.icon(iconMd)}
                   
                   <Text className="text-gray-400 text-sm w-16">{item.time}</Text>
                   <Text className="flex-1 text-gray-800 text-sm font-medium">
@@ -135,8 +142,8 @@ export default function HomeScreen() {
               {/* Left - Status */}
               <View className="flex-1 bg-teal-50 rounded-xl p-3 items-center justify-center">
                 {/* Heart icon placeholder */}
-                <CircularProgress progress={80} size={80} strokeWidth={8}>
-                  <Heart width={36} height={36} color="#14B8A6" />
+                <CircularProgress progress={80} size={s(75)} strokeWidth={s(7)}>
+                  <Heart width={s(32)} height={s(32)} color="#14B8A6" />
                 </CircularProgress>
                 <Text className="text-teal-600 font-bold text-lg">
                   {healthSummary.status}
