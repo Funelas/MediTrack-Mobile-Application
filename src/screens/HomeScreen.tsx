@@ -82,11 +82,9 @@ function NextUpCard({
     const [h, m] = item.time.split(':').map(Number);
     const target = new Date();
     target.setHours(h, m, 0, 0);
-    const itemTime = target.getTime();
-    const start = itemTime - 30 * 60 * 1000;
-    const total = 30 * 60 * 1000;
+    const start = target.getTime() - 30 * 60 * 1000;
     const elapsed = Date.now() - start;
-    const progress = Math.min(Math.max(elapsed / total, 0), 1);
+    const progress = Math.min(Math.max(elapsed / (30 * 60 * 1000), 0), 1);
     Animated.timing(barAnim, {
       toValue: progress,
       duration: 600,
@@ -97,16 +95,16 @@ function NextUpCard({
   // ── all-done / no items ──
   if (!item) {
     return (
-      <View className="rounded-2xl overflow-hidden shadow-sm" style={{backgroundColor: '#F0FDFA'}}>
-        <View className="px-4 pt-4 pb-5 items-center gap-2">
-          <View className="w-14 h-14 rounded-full items-center justify-center mb-1" style={{backgroundColor: '#CCFBF1'}}>
-            <Check width={s(28)} height={s(28)} color="#14B8A6" />
-          </View>
-          <Text className="text-teal-700 font-bold text-base">All done for today!</Text>
-          <Text className="text-teal-500 text-xs text-center">
-            No more scheduled items. Great job keeping up.
-          </Text>
+      <View className="bg-white rounded-2xl p-4 shadow-sm items-center gap-2">
+        <View
+          className="w-12 h-12 rounded-full items-center justify-center mt-1"
+          style={{backgroundColor: '#CCFBF1'}}>
+          <Check width={s(24)} height={s(24)} color="#14B8A6" />
         </View>
+        <Text className="text-gray-800 font-bold text-sm mt-1">All done for today!</Text>
+        <Text className="text-gray-400 text-xs text-center pb-1">
+          No more scheduled items. Great job keeping up.
+        </Text>
       </View>
     );
   }
@@ -114,11 +112,10 @@ function NextUpCard({
   const mins = getMinutesFromNow(item.time);
   const isOverdue = mins < 0;
   const accentColor = isOverdue ? '#EF4444' : '#14B8A6';
-  const accentLight = isOverdue ? '#FEF2F2' : '#F0FDFA';
-  const accentMid = isOverdue ? '#FECACA' : '#CCFBF1';
-  const accentText = isOverdue ? '#DC2626' : '#0F766E';
+  const accentBg = isOverdue ? '#FEF2F2' : '#F0FDFA';
+  const accentBar = isOverdue ? '#FECACA' : '#CCFBF1';
 
-  const iconSize = s(26);
+  const iconSize = s(22);
   const typeIcon =
     item.type === 'appointment' ? (
       <Calendar width={iconSize} height={iconSize} color="#ffffff" />
@@ -132,8 +129,8 @@ function NextUpCard({
     item.type === 'appointment' && item.doctorClinic
       ? item.doctorClinic
       : item.notes
-      ? item.notes.length > 40
-        ? item.notes.slice(0, 40) + '…'
+      ? item.notes.length > 45
+        ? item.notes.slice(0, 45) + '…'
         : item.notes
       : null;
 
@@ -143,49 +140,58 @@ function NextUpCard({
   });
 
   return (
-    <View className="rounded-2xl overflow-hidden shadow-sm" style={{backgroundColor: accentColor}}>
-      {/* header row */}
-      <View className="flex-row justify-between items-center px-4 pt-4 pb-3">
-        <View className="flex-row items-center gap-2">
-          <Text className="text-white text-xs font-semibold tracking-widest uppercase opacity-90">
+    <View className="bg-white rounded-2xl shadow-sm">
+      {/* colored top strip */}
+      <View style={{height: 3, backgroundColor: accentColor, borderTopLeftRadius: 16, borderTopRightRadius: 16}} />
+
+      <View className="px-4 pt-3 pb-4">
+        {/* header row */}
+        <View className="flex-row justify-between items-center mb-3">
+          <Text className="text-gray-400 text-xs font-semibold tracking-widest uppercase">
             Next Up
           </Text>
-          {isOverdue && (
-            <View className="bg-white/20 rounded-full px-2 py-0.5">
-              <Text className="text-white text-xs font-bold">Overdue</Text>
-            </View>
-          )}
-        </View>
-        <View className="flex-row items-center gap-1">
-          <Clock width={s(13)} height={s(13)} color="#ffffff" />
-          <Text className="text-white text-xs font-semibold">
-            {isOverdue
-              ? `${Math.abs(mins)} min${Math.abs(mins) === 1 ? '' : 's'} ago`
-              : formatCountdown(mins)}
-          </Text>
-        </View>
-      </View>
-
-      {/* body */}
-      <View className="mx-3 mb-3 rounded-xl px-4 pt-4 pb-3" style={{backgroundColor: accentLight}}>
-        <View className="flex-row items-center gap-3 mb-3">
-          <View className="w-12 h-12 rounded-xl items-center justify-center" style={{backgroundColor: accentColor}}>
-            {typeIcon}
-          </View>
-          <View className="flex-1">
-            <Text className="font-bold text-base" style={{color: accentText}} numberOfLines={1}>
-              {item.title}
+          <View className="flex-row items-center gap-1">
+            <Clock width={s(12)} height={s(12)} color={accentColor} />
+            <Text className="text-xs font-semibold" style={{color: accentColor}}>
+              {isOverdue
+                ? `${Math.abs(mins)} min${Math.abs(mins) === 1 ? '' : 's'} ago`
+                : formatCountdown(mins)}
             </Text>
-            <View className="flex-row items-center gap-2 mt-0.5">
-              <View className="rounded-full px-2 py-0.5" style={{backgroundColor: accentMid}}>
-                <Text className="text-xs font-medium" style={{color: accentText}}>
-                  {typeLabel(item.type)}
+            {isOverdue && (
+              <View
+                className="rounded-full px-2 py-0.5 ml-1"
+                style={{backgroundColor: accentBg}}>
+                <Text className="text-xs font-bold" style={{color: accentColor}}>
+                  Overdue
                 </Text>
               </View>
+            )}
+          </View>
+        </View>
+
+        {/* main content row */}
+        <View className="flex-row items-center gap-3 mb-3">
+          {/* icon bubble */}
+          <View
+            className="w-11 h-11 rounded-xl items-center justify-center"
+            style={{backgroundColor: accentColor}}>
+            {typeIcon}
+          </View>
+
+          {/* text block */}
+          <View className="flex-1">
+            <Text className="text-gray-800 font-bold text-sm" numberOfLines={1}>
+              {item.title}
+            </Text>
+            <View className="flex-row items-center gap-1.5 mt-0.5 flex-wrap">
+              <Text className="text-xs font-medium" style={{color: accentColor}}>
+                {typeLabel(item.type)}
+              </Text>
+              <Text className="text-gray-300 text-xs">·</Text>
               <Text className="text-gray-400 text-xs">{formatTimeStr(item.time)}</Text>
             </View>
             {detail && (
-              <Text className="text-gray-400 text-xs mt-1" numberOfLines={1}>
+              <Text className="text-gray-400 text-xs mt-0.5" numberOfLines={1}>
                 {detail}
               </Text>
             )}
@@ -193,9 +199,16 @@ function NextUpCard({
         </View>
 
         {/* progress bar */}
-        <View className="h-1.5 rounded-full mb-3 overflow-hidden" style={{backgroundColor: accentMid}}>
+        <View
+          className="h-1 rounded-full mb-3 overflow-hidden"
+          style={{backgroundColor: accentBar}}>
           <Animated.View
-            style={{width: barWidth, height: '100%', backgroundColor: accentColor, borderRadius: 999}}
+            style={{
+              width: barWidth,
+              height: '100%',
+              backgroundColor: accentColor,
+              borderRadius: 999,
+            }}
           />
         </View>
 
@@ -297,7 +310,7 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        <View className="px-4 mt-4 gap-4">
+        <View className="px-4 mt-4 gap-y-4 flex-column justify-center">
 
           {/* Next Up Card */}
           <NextUpCard item={nextItem} now={now} onMarkDone={handleMarkDone} />

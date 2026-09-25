@@ -59,8 +59,13 @@ export default function ScheduleDetailScreen() {
 
   if (!item) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <Text className="text-gray-400">Item not found.</Text>
+      <SafeAreaView className="flex-1 bg-white items-center justify-center px-8">
+        <Text className="text-gray-400 text-center">
+          Item not found. It may have been deleted.
+        </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} className="mt-4">
+          <Text className="text-teal-500 font-semibold">Go back</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }

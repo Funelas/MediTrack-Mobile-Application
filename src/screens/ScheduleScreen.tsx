@@ -208,11 +208,13 @@ export default function ScheduleScreen() {
   }) => (
     <View>
       <TouchableOpacity
-        onPress={() =>
-          item.referenceType === 'task'
-            ? navigation.navigate('ScheduleDetail', {id: item.referenceId, type: item.type as any})
-            : undefined
-        }
+        onPress={() => {
+          if (item.referenceType === 'task') {
+            navigation.navigate('ScheduleDetail', {id: item.referenceId, type: item.type as any});
+          } else if (item.referenceType === 'med') {
+            navigation.navigate('MedicineDetail', {id: item.referenceId});
+          }
+        }}
         className="flex-row items-center px-4 py-3 gap-3">
         <View
           className={`w-1 h-10 rounded-full ${

@@ -33,17 +33,22 @@ function StockBar({current, max, threshold, color}: {current: number; max: numbe
 
 export default function MedicineDetailScreen() {
   const navigation = useNavigation<Nav>();
-  const {params} = useRoute<Route>();
+  const route = useRoute<Route>();
+  const params = route.params;
   const [med, setMed] = useState<MedicineModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [taken, setTaken] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
+    if (!params?.id) {
+      setLoading(false);
+      return;
+    }
     database.get<MedicineModel>('medicines').find(params.id)
       .then(result => { setMed(result); })
       .catch(() => setMed(null))
       .finally(() => setLoading(false));
-  }, [params.id]);
+  }, [params?.id]);
 
   if (loading) {
     return (
@@ -55,17 +60,44 @@ export default function MedicineDetailScreen() {
 
   if (!med) {
     return (
-      <SafeAreaView className="flex-1 bg-white items-center justify-center">
-        <Text className="text-gray-400">Medicine not found.</Text>
+      <SafeAreaView className="flex-1 bg-white items-center justify-center px-8">
+        <Text className="text-gray-400 text-center">Medicine not found.</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} className="mt-4">
+          <Text className="text-teal-500 font-semibold">Go back</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
   const intakeTimes = med.parsedIntakeTimes;
-  const repeat = med.parsedRepeat;
-  const repeatLabel = repeat.type === 'everyday'
-    ? 'Every Day'
-    : repeat.days && repeat.days.length > 0 ? repeat.days.join(', ') : 'Custom';
+
+  // Parse rrule for display — "FREQ=DAILY" → "Every Day", "FREQ=WEEKLY;BYDAY=MO,WE" → "Mon, Wed"
+  const rruleParts: Record<string, string> = {};
+  med.rrule.split(';').forEach(part => {
+    const [k, v] = part.split('=');
+    if (k && v) rruleParts[k] = v;
+  });
+  const repeatLabel = (() => {
+    if (rruleParts['COUNT'] === '1') return 'Does not repeat';
+    if (rruleParts['BYDAY']) {
+      const dayMap: Record<string, string> = {
+        SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
+      };
+      return rruleParts['BYDAY'].split(',').map(d => dayMap[d] ?? d).join(', ');
+    }
+    if (rruleParts['FREQ'] === 'WEEKLY') return 'Every Week';
+    if (rruleParts['FREQ'] === 'MONTHLY') return 'Every Month';
+    return 'Every Day';
+  })();
+
+  const endsLabel = (() => {
+    if (med.endsType === 'on_date' && med.endDate)
+      return new Date(med.endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+    if (med.endsType === 'after_occurrences')
+      return `After ${med.occurrencesCount} occurrences`;
+    return 'Never';
+  })();
+
   const startDateLabel = new Date(med.startDate).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
   const isLow = med.lowStockAlert && med.currentStock <= med.lowStockThreshold;
   const stockColor = isLow ? '#F97316' : '#14B8A6';
@@ -165,14 +197,7 @@ export default function MedicineDetailScreen() {
                 <View className="flex-1">
                   <Text className="text-gray-500 text-xs">Ends</Text>
                 </View>
-                <Text className="text-gray-800 text-sm font-semibold">
-                  {med.endsType === 'Never' ? 'Never'
-                    : med.endsType === 'On Date' && med.endDate
-                    ? new Date(med.endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
-                    : med.endsType === 'After Occurrences'
-                    ? `After ${med.occurrences} occurrences`
-                    : 'Never'}
-                </Text>
+                <Text className="text-gray-800 text-sm font-semibold">{endsLabel}</Text>
               </View>
               <View className="flex-row items-center gap-3 px-4 py-4">
                 <View className="w-9 h-9 rounded-xl bg-gray-100 items-center justify-center">
