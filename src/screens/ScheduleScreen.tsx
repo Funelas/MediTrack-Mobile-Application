@@ -1,4 +1,4 @@
-import React, {useState, useCallback} from 'react';
+import React, {useState, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -52,6 +52,8 @@ export default function ScheduleScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPriorDays, setShowPriorDays] = useState(false);
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  const dayOffsets = useRef<Record<string, number>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -174,7 +176,7 @@ export default function ScheduleScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         <View className="px-4 mt-4">
 
           {/* Month / Week Toggle + Filters */}
@@ -267,7 +269,16 @@ export default function ScheduleScreen() {
                         return (
                           <View key={i} className="flex-1 items-center">
                             <TouchableOpacity
-                              onPress={() => { setSelectedDay(date.getDate()); setCurrentMonth(date.getMonth()); setCurrentYear(date.getFullYear()); }}
+                              onPress={() => {
+                              setSelectedDay(date.getDate());
+                              setCurrentMonth(date.getMonth());
+                              setCurrentYear(date.getFullYear());
+                              const key = date.toDateString();
+                              const offset = dayOffsets.current[key];
+                              if (offset !== undefined) {
+                                scrollRef.current?.scrollTo({y: offset, animated: true});
+                              }
+                            }}
                               className="items-center">
                               <View className={`w-8 h-8 items-center justify-center rounded-full ${isSelected ? 'bg-teal-500' : isToday ? 'border border-teal-500' : ''}`}>
                                 <Text className={`text-sm ${isSelected ? 'text-white font-bold' : isToday ? 'text-teal-500 font-bold' : 'text-gray-700'}`}>{date.getDate()}</Text>
@@ -324,8 +335,10 @@ export default function ScheduleScreen() {
                     const isToday = date.toDateString() === today.toDateString();
                     const dayLabel = isToday ? 'Today' : date.toLocaleDateString('en-US', {weekday: 'long'});
                     const dateLabel = date.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
+                    const key = date.toDateString();
                     return (
-                      <View key={date.toDateString()} className="mb-4">
+                      <View key={key} className="mb-4"
+                        onLayout={e => { dayOffsets.current[key] = e.nativeEvent.layout.y; }}>
                         <View className="flex-row items-center gap-2 mb-2">
                           <Text className="text-gray-800 font-semibold">{dayLabel}</Text>
                           <Text className="text-gray-400 text-sm">· {dateLabel}</Text>
