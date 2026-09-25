@@ -698,7 +698,7 @@ function Step4({data, setData}: {data: any; setData: (d: any) => void}) {
   );
 }
 import Download from '../assets/svg_icons/download.svg';
-import {addMedicine} from '../database/services';
+import {addMedicine, buildRRule} from '../database/services';
 // Main Screen
 export default function AddMedicineScreen() {
   const navigation = useNavigation();
@@ -730,12 +730,20 @@ export default function AddMedicineScreen() {
 
   const handleSave = async () => {
     try {
-      const repeatJson = step2.repeatType === 'Every Day'
-        ? JSON.stringify({type: 'everyday'})
-        : JSON.stringify({type: 'custom', days: step2.repeatDays});
+      const rrule = buildRRule(
+        step2.repeatType === 'Every Day' ? 'Every day' : 'Custom',
+        step2.repeatDays,
+        step2.endsType === 'Never'
+          ? 'never'
+          : step2.endsType === 'On Date'
+          ? 'on_date'
+          : 'after_occurrences',
+        step2.occurrences ? parseInt(step2.occurrences) : undefined,
+        step2.endDate ? step2.endDate.getTime() : undefined,
+      );
 
       const intakeTimeStrings = step2.intakeTimes.map(t =>
-        new Date(t).toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false})
+        `${String(new Date(t).getHours()).padStart(2, '0')}:${String(new Date(t).getMinutes()).padStart(2, '0')}`,
       );
 
       await addMedicine({
@@ -747,10 +755,14 @@ export default function AddMedicineScreen() {
         dosage: step1.dosage,
         intakeTimes: intakeTimeStrings,
         startDate: step2.startDate,
-        repeat: repeatJson,
-        endsType: step2.endsType,
+        rrule,
+        endsType: step2.endsType === 'Never'
+          ? 'never'
+          : step2.endsType === 'On Date'
+          ? 'on_date'
+          : 'after_occurrences',
         endDate: step2.endDate ? step2.endDate.getTime() : undefined,
-        occurrences: step2.occurrences ? parseInt(step2.occurrences) : undefined,
+        occurrencesCount: step2.occurrences ? parseInt(step2.occurrences) : undefined,
         reminderEnabled: step2.reminderEnabled,
         currentStock: parseFloat(step3.currentStock) || 0,
         maxStock: parseFloat(step3.maxStock) || 0,

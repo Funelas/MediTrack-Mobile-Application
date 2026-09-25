@@ -6,9 +6,8 @@ import {ScheduleStackParamList} from '../navigation/ScheduleStackNavigator';
 import Bell from '../assets/svg_icons/bell.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Clock from '../assets/svg_icons/clock.svg';
-import Pills from '../assets/svg_icons/pills.svg';
 import {database} from '../database';
-import Schedule from '../database/models/Schedule';
+import Task from '../database/models/Task';
 
 type Nav = NativeStackNavigationProp<ScheduleStackParamList>;
 type Route = RouteProp<ScheduleStackParamList, 'ScheduleDetail'>;
@@ -27,14 +26,24 @@ function DetailRow({icon, label, value}: {icon: React.ReactNode; label: string; 
   );
 }
 
+/** "HH:MM" → "9:00 AM" */
+function formatTimeStr(timeStr: string): string {
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
+}
+
 export default function ScheduleDetailScreen() {
   const navigation = useNavigation<Nav>();
   const {params} = useRoute<Route>();
-  const [item, setItem] = useState<Schedule | null>(null);
+  const [item, setItem] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    database.get<Schedule>('schedules').find(params.id)
+    database
+      .get<Task>('tasks')
+      .find(params.id)
       .then(setItem)
       .catch(() => setItem(null))
       .finally(() => setLoading(false));
@@ -59,8 +68,11 @@ export default function ScheduleDetailScreen() {
   const isAppointment = item.type === 'appointment';
   const accentColor = isAppointment ? '#3B82F6' : '#F97316';
   const headerTitle = isAppointment ? 'Appointment Details' : 'Reminder Details';
-  const formattedDate = new Date(item.date).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
-  const formattedTime = new Date(item.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
+  const formattedDate = new Date(item.startDate).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -71,7 +83,12 @@ export default function ScheduleDetailScreen() {
         </TouchableOpacity>
         <Text className="text-gray-800 text-base font-semibold">{headerTitle}</Text>
         <TouchableOpacity
-          onPress={() => navigation.navigate('EditSchedule', {id: item.id, type: item.type as 'reminder' | 'appointment'})}
+          onPress={() =>
+            navigation.navigate('EditSchedule', {
+              id: item.id,
+              type: item.type as 'reminder' | 'appointment',
+            })
+          }
           className="p-2">
           <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
         </TouchableOpacity>
@@ -103,12 +120,28 @@ export default function ScheduleDetailScreen() {
               {isAppointment ? 'Appointment Info' : 'Schedule & Reminder'}
             </Text>
             <View className="bg-white rounded-2xl overflow-hidden">
-              <DetailRow icon={<Calendar width={18} height={18} color="#6B7280" />} label="Date" value={formattedDate} />
-              <DetailRow icon={<Clock width={18} height={18} color="#6B7280" />} label="Time" value={formattedTime} />
+              <DetailRow
+                icon={<Calendar width={18} height={18} color="#6B7280" />}
+                label="Start Date"
+                value={formattedDate}
+              />
+              <DetailRow
+                icon={<Clock width={18} height={18} color="#6B7280" />}
+                label="Time"
+                value={formatTimeStr(item.time)}
+              />
               {isAppointment && item.location ? (
-                <DetailRow icon={<Bell width={18} height={18} color="#6B7280" />} label="Location" value={item.location} />
+                <DetailRow
+                  icon={<Bell width={18} height={18} color="#6B7280" />}
+                  label="Location"
+                  value={item.location}
+                />
               ) : null}
-              <DetailRow icon={<Clock width={18} height={18} color="#6B7280" />} label="Repeat" value={item.repeat} />
+              <DetailRow
+                icon={<Clock width={18} height={18} color="#6B7280" />}
+                label="Repeat"
+                value={item.rrule}
+              />
               <View className="flex-row items-center gap-3 px-4 py-4">
                 <View className="w-9 h-9 rounded-xl bg-gray-100 items-center justify-center">
                   <Bell width={18} height={18} color="#6B7280" />
@@ -124,7 +157,9 @@ export default function ScheduleDetailScreen() {
           {/* Notes */}
           {item.notes ? (
             <View>
-              <Text className="text-sm font-bold mb-2" style={{color: accentColor}}>Notes</Text>
+              <Text className="text-sm font-bold mb-2" style={{color: accentColor}}>
+                Notes
+              </Text>
               <View className="bg-white rounded-2xl px-4 py-4">
                 <Text className="text-gray-600 text-sm">{item.notes}</Text>
               </View>
