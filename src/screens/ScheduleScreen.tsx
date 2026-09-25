@@ -329,7 +329,7 @@ export default function ScheduleScreen() {
                     <View className={`w-4 h-4 rounded border-2 items-center justify-center ${showPriorDays ? 'bg-teal-500 border-teal-500' : 'border-gray-300'}`}>
                       {showPriorDays && <Text className="text-white text-xs font-bold">✓</Text>}
                     </View>
-                    <Text className="text-gray-600 text-sm">Unhide Prior Days</Text>
+                    <Text className="text-gray-600 text-sm">Show Prior Days</Text>
                   </TouchableOpacity>
                   {visibleWeekDays.map(({date, items}) => {
                     const isToday = date.toDateString() === today.toDateString();

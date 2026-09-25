@@ -1,7 +1,7 @@
 import {appSchema, tableSchema} from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 1,
+  version: 3,
   tables: [
     tableSchema({
       name: 'medicines',
@@ -12,11 +12,15 @@ export const schema = appSchema({
         {name: 'color', type: 'string'},
         {name: 'form', type: 'string'},
         {name: 'dosage', type: 'string'},
-        {name: 'intake_time', type: 'number'},
-        {name: 'times_per_day', type: 'number'},
+        {name: 'intake_times', type: 'string'},
+        {name: 'start_date', type: 'number'},
         {name: 'repeat', type: 'string'},
+        {name: 'ends_type', type: 'string'},
+        {name: 'end_date', type: 'number', isOptional: true},
+        {name: 'occurrences', type: 'number', isOptional: true},
         {name: 'reminder_enabled', type: 'boolean'},
         {name: 'current_stock', type: 'number'},
+        {name: 'max_stock', type: 'number'},
         {name: 'low_stock_alert', type: 'boolean'},
         {name: 'low_stock_threshold', type: 'number'},
         {name: 'tracking_method', type: 'string'},

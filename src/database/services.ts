@@ -21,11 +21,15 @@ export const addMedicine = async (data: {
   color: string;
   form: string;
   dosage: string;
-  intakeTime: Date;
-  timesPerDay: number;
-  repeat: string;
+  intakeTimes: string[];        // e.g. ["08:00", "20:00"]
+  startDate: Date;
+  repeat: string;               // JSON string
+  endsType: string;             // "never" | "on_date" | "after_occurrences"
+  endDate?: number;
+  occurrences?: number;
   reminderEnabled: boolean;
   currentStock: number;
+  maxStock: number;
   lowStockAlert: boolean;
   lowStockThreshold: number;
   trackingMethod: string;
@@ -38,14 +42,20 @@ export const addMedicine = async (data: {
       med.color = data.color;
       med.form = data.form;
       med.dosage = data.dosage;
-      med.intakeTime = data.intakeTime;
-      med.timesPerDay = data.timesPerDay;
+      med.intakeTimes = JSON.stringify(data.intakeTimes);
+      med.startDate = data.startDate;
       med.repeat = data.repeat;
+      med.endsType = data.endsType;
+      med.endDate = data.endDate ?? 0;
+      med.occurrences = data.occurrences ?? 0;
       med.reminderEnabled = data.reminderEnabled;
       med.currentStock = data.currentStock;
+      med.maxStock = data.maxStock;
       med.lowStockAlert = data.lowStockAlert;
       med.lowStockThreshold = data.lowStockThreshold;
       med.trackingMethod = data.trackingMethod;
+      (med as any)._raw.created_at = Date.now();
+      (med as any)._raw.updated_at = Date.now();
     });
   });
 };
