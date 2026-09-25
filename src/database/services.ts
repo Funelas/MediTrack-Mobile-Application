@@ -79,7 +79,16 @@ export const getIntakeLogsForMedicine = (medicineId: string) =>
   intakeLogs.query().fetch();
 
 // --- Schedules ---
-export const getSchedules = () => schedules.query().fetch();
+export const getSchedules = async () => {
+  const results = await schedules.query().fetch();
+  console.log('[DB] Schedules:', JSON.stringify(results.map(s => ({
+    id: s.id, title: s.title, type: s.type,
+    date: new Date(s.date).toISOString(),
+    time: new Date(s.time).toISOString(),
+    isDone: s.isDone,
+  })), null, 2));
+  return results;
+};
 
 export const addSchedule = async (data: {
   title: string;
@@ -104,6 +113,8 @@ export const addSchedule = async (data: {
       s.doctorClinic = data.doctorClinic ?? '';
       s.location = data.location ?? '';
       s.isDone = false;
+      (s as any)._raw.created_at = Date.now();
+      (s as any)._raw.updated_at = Date.now();
     });
   });
 };

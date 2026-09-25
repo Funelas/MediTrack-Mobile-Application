@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect} from '@react-navigation/native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import ScheduleSkeleton from '../components/ScheduleSkeleton';
 import AddToScheduleModal from '../components/AddToScheduleModal';
@@ -15,17 +16,10 @@ import Bell from '../assets/svg_icons/bell.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Pills from '../assets/svg_icons/pills.svg';
 import Filter from '../assets/svg_icons/filter.svg';
+import {getSchedules} from '../database/services';
+import Schedule from '../database/models/Schedule';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const appointmentDays = new Set([8, 12, 13, 15, 22]);
-
-const scheduleItems = [
-  {id: '1', time: '8:00 AM', title: 'Amlodipine 5mg', subtitle: '1 tablet', color: '#14B8A6', type: 'med'},
-  {id: '2', time: '1:00 PM', title: 'Check Blood Pressure', subtitle: 'Task', color: '#F97316', type: 'task'},
-  {id: '3', time: '3:00 PM', title: "Doctor's Appointment", subtitle: 'Dr. Maria Gaston · Cardiology Clinics', color: '#3B82F6', type: 'appointment'},
-  {id: '4', time: '5:00 PM', title: 'Restock Medicine', subtitle: 'Task', color: '#F97316', type: 'task'},
-  {id: '5', time: '9:00 PM', title: 'Atorvastatin 10mg', subtitle: '1 tablet', color: '#14B8A6', type: 'med'},
-];
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -57,6 +51,32 @@ export default function ScheduleScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPriorDays, setShowPriorDays] = useState(false);
+  const [allSchedules, setAllSchedules] = useState<Schedule[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      getSchedules().then(setAllSchedules);
+    }, [])
+  );
+
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  const schedulesForDay = (d: Date) =>
+    allSchedules
+      .filter(s => isSameDay(new Date(s.date), d))
+      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+  const daysWithSchedules = new Set(
+    allSchedules
+      .filter(s => {
+        const d = new Date(s.date);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+      })
+      .map(s => new Date(s.date).getDate())
+  );
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay());
@@ -71,7 +91,7 @@ export default function ScheduleScreen() {
     ...Array.from({length: daysInMonth}, (_, i) => i + 1),
   ];
 
-  const weekDaySchedule = weekDates.map(date => ({date, items: scheduleItems}));
+  const weekDaySchedule = weekDates.map(date => ({date, items: schedulesForDay(date)}));
   const visibleWeekDays = showPriorDays
     ? weekDaySchedule
     : weekDaySchedule.filter(({date}) => {
@@ -114,26 +134,25 @@ export default function ScheduleScreen() {
   const cardIcon = (type: string) => {
     switch (type) {
       case 'med': return <Pills width={25} height={25} color="#139880" />;
-      case 'task': return <Bell width={25} height={25} color="#E2EA00" />;
+      case 'reminder': return <Bell width={25} height={25} color="#E2EA00" />;
       case 'appointment': return <Calendar width={25} height={25} color="#F15C5C" />;
       default: return <Plus width={25} height={25} color="#FFFFFC" />;
     }
   };
 
-  const ScheduleItem = ({item, id, showDivider}: {item: typeof scheduleItems[0]; id: string; showDivider: boolean}) => (
+  const ScheduleItem = ({item, id, showDivider}: {item: Schedule; id: string; showDivider: boolean}) => (
     <View>
       <TouchableOpacity
-        onPress={() => item.type === 'med'
-          ? navigation.navigate('MedicineDetail', {id: item.id})
-          : navigation.navigate('ScheduleDetail', {id: item.id, type: item.type})}
+        onPress={() => navigation.navigate('ScheduleDetail', {id: item.id, type: item.type as any})}
         className="flex-row items-center px-4 py-3 gap-3">
-        <View className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? '' : 'bg-transparent'}`}
-          style={item.type === 'appointment' ? {backgroundColor: item.color} : undefined} />
-        <Text className="text-gray-400 text-xs w-16">{item.time}</Text>
+        <View className={`w-1 h-10 rounded-full ${item.type === 'appointment' ? 'bg-blue-400' : 'bg-transparent'}`} />
+        <Text className="text-gray-400 text-xs w-16">
+          {new Date(item.time).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true})}
+        </Text>
         <View className="flex justify-center items-center rounded-full">{cardIcon(item.type)}</View>
         <View className="flex-1">
           <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
-          <Text className="text-gray-400 text-xs mt-0.5">{item.subtitle}</Text>
+          <Text className="text-gray-400 text-xs mt-0.5">{item.type === 'appointment' ? item.doctorClinic || 'Appointment' : 'Reminder'}</Text>
         </View>
         <TouchableOpacity
           onPress={() => toggleCheck(id)}
@@ -206,7 +225,7 @@ export default function ScheduleScreen() {
                       {calendarCells.map((day, index) => {
                         const isToday = day === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
                         const isSelected = day === selectedDay;
-                        const hasAppointment = day ? appointmentDays.has(day) : false;
+                        const hasAppointment = day ? daysWithSchedules.has(day) : false;
                         return (
                           <View key={index} className="w-[14.28%] items-center mb-1">
                             {day ? (
@@ -244,7 +263,7 @@ export default function ScheduleScreen() {
                       {weekDates.map((date, i) => {
                         const isToday = date.toDateString() === today.toDateString();
                         const isSelected = date.toDateString() === new Date(currentYear, currentMonth, selectedDay).toDateString();
-                        const hasAppt = appointmentDays.has(date.getDate());
+                        const hasAppt = allSchedules.some(s => isSameDay(new Date(s.date), date));
                         return (
                           <View key={i} className="flex-1 items-center">
                             <TouchableOpacity
@@ -270,15 +289,28 @@ export default function ScheduleScreen() {
               {/* Schedule List */}
               {activeTab === 'Month' ? (
                 <>
-                  <View className="flex-row items-center gap-2 mb-3">
-                    <Text className="text-gray-800 font-semibold">Today</Text>
-                    <Text className="text-gray-400 text-sm">· {todayLabel}</Text>
-                  </View>
-                  <View className="bg-white rounded-2xl shadow-sm mb-6 overflow-hidden">
-                    {scheduleItems.map((item, index) => (
-                      <ScheduleItem key={item.id} item={item} id={item.id} showDivider={index < scheduleItems.length - 1} />
-                    ))}
-                  </View>
+                  {(() => {
+                    const selected = new Date(currentYear, currentMonth, selectedDay);
+                    const items = schedulesForDay(selected);
+                    const label = isSameDay(selected, today) ? 'Today' : selected.toLocaleDateString('en-US', {weekday: 'long'});
+                    const dateLabel = selected.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
+                    return (
+                      <>
+                        <View className="flex-row items-center gap-2 mb-3">
+                          <Text className="text-gray-800 font-semibold">{label}</Text>
+                          <Text className="text-gray-400 text-sm">· {dateLabel}</Text>
+                        </View>
+                        <View className="bg-white rounded-2xl shadow-sm mb-6 overflow-hidden">
+                          {items.length === 0
+                            ? <Text className="text-gray-400 text-sm text-center py-6">No schedules for this day.</Text>
+                            : items.map((item, index) => (
+                                <ScheduleItem key={item.id} item={item} id={item.id} showDivider={index < items.length - 1} />
+                              ))
+                          }
+                        </View>
+                      </>
+                    );
+                  })()}
                 </>
               ) : (
                 <>
@@ -299,14 +331,17 @@ export default function ScheduleScreen() {
                           <Text className="text-gray-400 text-sm">· {dateLabel}</Text>
                         </View>
                         <View className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                          {items.map((item, index) => (
-                            <ScheduleItem
-                              key={item.id}
-                              item={item}
-                              id={`${date.toDateString()}-${item.id}`}
-                              showDivider={index < items.length - 1}
-                            />
-                          ))}
+                          {items.length === 0
+                            ? <Text className="text-gray-400 text-sm text-center py-6">No schedules for this day.</Text>
+                            : items.map((item, index) => (
+                                <ScheduleItem
+                                  key={item.id}
+                                  item={item}
+                                  id={`${date.toDateString()}-${item.id}`}
+                                  showDivider={index < items.length - 1}
+                                />
+                              ))
+                          }
                         </View>
                       </View>
                     );
