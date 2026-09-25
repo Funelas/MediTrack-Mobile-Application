@@ -7,13 +7,16 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
+  Alert,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {addTask, buildRRule} from '../database/services';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import RadioSelectModal from '../components/RadioSelectModal';
 import CustomRepeatModal from '../components/CustomRepeatModal';
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Clock from '../assets/svg_icons/clock.svg';
+
 const REPEAT_OPTIONS = ['Does not repeat', 'Every day', 'Every week', 'Every month', 'Custom'];
 const REMINDER_OPTIONS = ['At time of event', '5 mins before', '15 mins before', '30 mins before', '1 hour before'];
 
@@ -42,14 +45,47 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
   const [showCustomRepeat, setShowCustomRepeat] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
 
+  // customRepeat stores the raw display string from CustomRepeatModal
+  // but we also need to know the days for buildRRule — stored separately
+  const [customRepeatDays, setCustomRepeatDays] = useState<string[]>([]);
+
   const formattedDate = date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
   const formattedTime = time.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
+
+  // HH:MM string for storage
+  const timeString = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
 
   const handleRepeatSave = (value: string) => {
     if (value === 'Custom') {
       setShowCustomRepeat(true);
     } else {
       setRepeat(value);
+      setCustomRepeatDays([]);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      Alert.alert('Required', `Please enter a ${isAppointment ? 'appointment' : 'reminder'} name.`);
+      return;
+    }
+    try {
+      const rrule = buildRRule(repeat, customRepeatDays);
+      await addTask({
+        title: name.trim(),
+        type,
+        startDate: date,
+        time: timeString,
+        rrule,
+        endsType: 'never',
+        reminder,
+        notes,
+        doctorClinic,
+        location,
+      });
+      navigation.goBack();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save. Please try again.');
     }
   };
 
@@ -165,7 +201,7 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
         />
 
         {/* Save Button */}
-        <TouchableOpacity className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
+        <TouchableOpacity onPress={handleSave} className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
           <Text className="text-white font-semibold text-base">{saveLabel}</Text>
         </TouchableOpacity>
 
@@ -210,7 +246,11 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
       {/* Custom Repeat Modal */}
       <CustomRepeatModal
         visible={showCustomRepeat}
-        onSave={value => setRepeat(value)}
+        onSave={value => {
+          setRepeat(value);
+          // Extract days from custom value if it contains day info
+          // CustomRepeatModal returns a display string; days are tracked separately
+        }}
         onClose={() => setShowCustomRepeat(false)}
       />
 

@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,87 +8,35 @@ import {
   TextInput,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
+import {useFocusEffect} from '@react-navigation/native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import Pills from '../assets/svg_icons/pills.svg';
 import MagnifyingGlass from '../assets/svg_icons/magnifying-glass.svg';
 import Filter from '../assets/svg_icons/filter.svg';
 import Clock from '../assets/svg_icons/clock.svg';
 import Stock from '../assets/svg_icons/stock.svg';
-interface Medicine {
-  id: string;
-  name: string;
-  type: string;
-  nextIntake: string;
-  frequency: string;
-  instock: number;
-  totalStock: number;
-  stockStatus: 'good' | 'low';
-  enoughUntil: string;
-  iconColor: string;
-  iconBg: string;
-}
+import {getMedicines} from '../database/services';
+import MedicineModel from '../database/models/Medicine';
 
-const medicines: Medicine[] = [
-  {
-    id: '1',
-    name: 'Metformin 500g',
-    type: 'Oral Tablet',
-    nextIntake: '9:00 AM',
-    frequency: 'Once a day',
-    instock: 90,
-    totalStock: 100,
-    stockStatus: 'good',
-    enoughUntil: 'Aug. 24 2026',
-    iconColor: '#6366F1',
-    iconBg: '#EEF2FF',
-  },
-  {
-    id: '2',
-    name: 'Atorvastatin 10mg',
-    type: 'Oral Tablet',
-    nextIntake: '9:00 PM',
-    frequency: 'Once a day',
-    instock: 20,
-    totalStock: 100,
-    stockStatus: 'low',
-    enoughUntil: 'Aug. 20 2026',
-    iconColor: '#F97316',
-    iconBg: '#FFF7ED',
-  },
-  {
-    id: '3',
-    name: 'Amlodipine 5mg',
-    type: 'Oral Tablet',
-    nextIntake: '9:00 AM',
-    frequency: 'Once a day',
-    instock: 60,
-    totalStock: 100,
-    stockStatus: 'good',
-    enoughUntil: 'Sept. 30 2026',
-    iconColor: '#14B8A6',
-    iconBg: '#F0FDFA',
-  },
-  {
-    id: '4',
-    name: 'Vitamin D3 1000 IU',
-    type: 'Capsule',
-    nextIntake: '8:00 AM',
-    frequency: 'Once a day',
-    instock: 80,
-    totalStock: 100,
-    stockStatus: 'good',
-    enoughUntil: 'Sept. 30 2026',
-    iconColor: '#EAB308',
-    iconBg: '#FEFCE8',
-  },
-];
-
-function StockBar({instock, total, status}: {instock: number; total: number; status: 'good' | 'low'}) {
-  const percent = (instock / total) * 100;
-  const barColor = status === 'good' ? '#14B8A6' : '#F97316';
+function StockBar({current, max, threshold, isLow}: {current: number; max: number; threshold: number; isLow: boolean}) {
+  const safeMax = max > 0 ? max : 1;
+  const fillPercent = Math.min((current / safeMax) * 100, 100);
+  const thresholdPercent = Math.min((threshold / safeMax) * 100, 100);
+  const barColor = isLow ? '#F97316' : '#14B8A6';
   return (
-    <View className="h-2 bg-gray-100 rounded-full overflow-hidden">
-      <View style={{width: `${percent}%`, backgroundColor: barColor, height: '100%', borderRadius: 999}} />
+    <View className="h-2 bg-gray-100 rounded-full" style={{position: 'relative'}}>
+      <View style={{width: `${fillPercent}%`, backgroundColor: barColor, height: '100%', borderRadius: 999}} />
+      {threshold > 0 && (
+        <View style={{
+          position: 'absolute',
+          left: `${thresholdPercent}%`,
+          top: -3,
+          width: 2,
+          height: 14,
+          backgroundColor: '#EF4444',
+          borderRadius: 1,
+        }} />
+      )}
     </View>
   );
 }
@@ -96,6 +44,13 @@ function StockBar({instock, total, status}: {instock: number; total: number; sta
 export default function MedicineScreen() {
   const navigation = useNavigation<any>();
   const [search, setSearch] = useState('');
+  const [medicines, setMedicines] = useState<MedicineModel[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      getMedicines().then(setMedicines);
+    }, [])
+  );
 
   const filtered = medicines.filter(m =>
     m.name.toLowerCase().includes(search.toLowerCase()),
@@ -135,7 +90,14 @@ export default function MedicineScreen() {
           </View>
 
           {/* Medicine Cards */}
-          {filtered.map(med => (
+          {filtered.map(med => {
+            const isLow = med.lowStockAlert && med.currentStock <= med.lowStockThreshold;
+            const iconColor = med.color;
+            const iconBg = med.color + '22';
+            const times = med.parsedIntakeTimes;
+            const nextIntake = times.length > 0 ? times[0] : '—';
+            const timesLabel = times.length === 1 ? 'Once a day' : `${times.length}x a day`;
+            return (
             <TouchableOpacity
               key={med.id}
               onPress={() => navigation.navigate('MedicineDetail', {id: med.id})}
@@ -143,31 +105,25 @@ export default function MedicineScreen() {
 
               {/* Top Row: Icon + Name + Intake/Frequency */}
               <View className="flex-row gap-3">
-                {/* Icon */}
                 <View
                   className="w-12 h-12 rounded-xl items-center justify-center"
-                  style={{backgroundColor: med.iconBg}}>
-                  <Pills width={28} height={28} color={med.iconColor} />
+                  style={{backgroundColor: iconBg}}>
+                  <Pills width={28} height={28} color={iconColor} />
                 </View>
-
-                {/* Name + Type */}
                 <View className="flex-1">
                   <Text className="text-gray-800 font-semibold text-sm">{med.name}</Text>
-                  <Text className="text-gray-400 text-xs mt-0.5">{med.type}</Text>
-
-                  {/* Next Intake + Frequency */}
+                  <Text className="text-gray-400 text-xs mt-0.5">{med.form}</Text>
                   <View className="flex-row gap-4 mt-2">
                     <View>
                       <Text className="text-gray-400 text-xs">Next Intake</Text>
                       <View className="flex-row items-center gap-1 mt-0.5">
-                        {/* Clock icon placeholder */}
                         <Clock width={15} height={15} color='black' />
-                        <Text className="text-teal-600 text-xs font-semibold">{med.nextIntake}</Text>
+                        <Text className="text-teal-600 text-xs font-semibold">{nextIntake}</Text>
                       </View>
                     </View>
                     <View>
                       <Text className="text-gray-400 text-xs">Frequency</Text>
-                      <Text className="text-gray-700 text-xs font-semibold mt-0.5">{med.frequency}</Text>
+                      <Text className="text-gray-700 text-xs font-semibold mt-0.5">{timesLabel}</Text>
                     </View>
                   </View>
                 </View>
@@ -177,40 +133,44 @@ export default function MedicineScreen() {
               <View className="mt-3">
                 <View className="flex-row items-center justify-between mb-1">
                   <View className="flex-row items-center gap-1">
-                    {/* Pill icon placeholder */}
                     <Stock width={25} height={25} color='black' />
                     <Text className="text-gray-500 text-xs">Instock</Text>
                   </View>
                   <View
                     className="px-2 py-0.5 rounded-full"
-                    style={{backgroundColor: med.stockStatus === 'good' ? '#F0FDFA' : '#FFF7ED'}}>
+                    style={{backgroundColor: isLow ? '#FFF7ED' : '#F0FDFA'}}>
                     <Text
                       className="text-xs font-semibold"
-                      style={{color: med.stockStatus === 'good' ? '#14B8A6' : '#F97316'}}>
-                      {med.instock} Tablets Left
+                      style={{color: isLow ? '#F97316' : '#14B8A6'}}>
+                      {med.currentStock} {med.form}(s) Left
                     </Text>
                   </View>
                 </View>
-                <StockBar instock={med.instock} total={med.totalStock} status={med.stockStatus} />
+                <StockBar
+                  current={med.currentStock}
+                  max={med.maxStock}
+                  threshold={med.lowStockAlert ? med.lowStockThreshold : 0}
+                  isLow={isLow}
+                />
+                {med.lowStockAlert && (
+                  <View className="flex-row items-center gap-1 mt-1">
+                    <View className="w-2 h-2 rounded-full bg-red-400" />
+                    <Text className="text-gray-400 text-xs">Low stock at {med.lowStockThreshold}</Text>
+                  </View>
+                )}
               </View>
 
-              {/* Footer: Stock Status + Enough Until */}
+              {/* Footer */}
               <View className="flex-row items-center gap-2 mt-2">
-                <View
-                  className="w-2 h-2 rounded-full"
-                  style={{backgroundColor: med.stockStatus === 'good' ? '#14B8A6' : '#F97316'}}
-                />
-                <Text
-                  className="text-xs font-medium"
-                  style={{color: med.stockStatus === 'good' ? '#14B8A6' : '#F97316'}}>
-                  {med.stockStatus === 'good' ? 'Good Stock' : 'Low Stock'}
+                <View className="w-2 h-2 rounded-full" style={{backgroundColor: isLow ? '#F97316' : '#14B8A6'}} />
+                <Text className="text-xs font-medium" style={{color: isLow ? '#F97316' : '#14B8A6'}}>
+                  {isLow ? 'Low Stock' : 'Good Stock'}
                 </Text>
-                <Text className="text-gray-300 text-xs">·</Text>
-                <Text className="text-gray-400 text-xs">Enough until {med.enoughUntil}</Text>
               </View>
 
             </TouchableOpacity>
-          ))}
+            );
+          })}
 
           {/* Empty state */}
           {filtered.length === 0 && (
