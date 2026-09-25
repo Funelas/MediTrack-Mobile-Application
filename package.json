@@ -9,6 +9,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@nozbe/watermelondb": "^0.28.0",
+    "@nozbe/with-observables": "^1.6.0",
     "@react-native-community/datetimepicker": "^7.7.0",
     "@react-native-ml-kit/text-recognition": "^1.0.2",
     "@react-navigation/bottom-tabs": "^6.6.1",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
+    "@babel/plugin-proposal-decorators": "^8.0.2",
     "@babel/preset-env": "^7.24.0",
     "@babel/runtime": "^7.24.0",
     "@react-native-community/cli": "13.6.6",
