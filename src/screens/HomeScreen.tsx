@@ -144,11 +144,8 @@ function NextUpCard({
   });
 
   return (
-    <View className="bg-white rounded-2xl shadow-sm">
-      {/* colored top strip */}
-      <View style={{height: 3, backgroundColor: accentColor, borderTopLeftRadius: 16, borderTopRightRadius: 16}} />
-
-      <View className="px-4 pt-3 pb-4">
+    <View className="rounded-2xl shadow-sm" style={{backgroundColor: accentBg}}>
+      <View className="px-4 pt-4 pb-4">
         {/* header row */}
         <View className="flex-row justify-between items-center mb-3">
           <Text className="text-gray-400 text-xs font-semibold tracking-widest uppercase">
@@ -204,8 +201,8 @@ function NextUpCard({
 
         {/* progress bar */}
         <View
-          className="h-1 rounded-full mb-3 overflow-hidden"
-          style={{backgroundColor: accentBar}}>
+          className="rounded-full mb-3 overflow-hidden"
+          style={{height: 6, backgroundColor: accentBar}}>
           <Animated.View
             style={{
               width: barWidth,
