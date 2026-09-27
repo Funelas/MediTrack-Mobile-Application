@@ -12,6 +12,7 @@ import Clock from '../assets/svg_icons/clock.svg';
 import {database} from '../database';
 import Task from '../database/models/Task';
 import DeleteScheduleModal, {DeleteScope} from '../components/DeleteScheduleModal';
+import EditScopeModal, {EditScope} from '../components/EditScopeModal';
 import {
   deleteThisOccurrence,
   deleteThisAndFollowing,
@@ -50,17 +51,42 @@ function rruleToLabel(rrule: string): string {
     if (k && v !== undefined) parts[k.trim()] = v.trim();
   });
   const freq = parts['FREQ'] ?? '';
+  const interval = parts['INTERVAL'] ? parseInt(parts['INTERVAL']) : 1;
   if (parts['COUNT'] === '1') return 'Does not repeat';
   const BYDAY_MAP: Record<string, string> = {
     SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
   };
+  const NUM_TO_WEEK: Record<string, string> = {
+    '1': '1st', '2': '2nd', '3': '3rd', '4': '4th', '-1': 'Last',
+  };
   let base = '';
-  if (parts['BYDAY']) {
-    base = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
-  } else if (freq === 'DAILY') { base = 'Every Day';
-  } else if (freq === 'WEEKLY') { base = 'Every Week';
-  } else if (freq === 'MONTHLY') { base = 'Every Month';
-  } else { base = rrule; }
+  if (freq === 'DAILY') {
+    base = interval === 1 ? 'Every Day' : `Every ${interval} Days`;
+  } else if (freq === 'WEEKLY') {
+    if (parts['BYDAY']) {
+      const match = parts['BYDAY'].match(/^(-?\d+)([A-Z]{2})$/);
+      if (match) {
+        // positional monthly BYDAY e.g. "2MO"
+        base = `Every ${NUM_TO_WEEK[match[1]] ?? ''} ${BYDAY_MAP[match[2]] ?? ''}`;
+        if (interval > 1) base += ` (every ${interval} months)`;
+      } else {
+        const days = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
+        base = interval === 1 ? `Every Week on ${days}` : `Every ${interval} Weeks on ${days}`;
+      }
+    } else {
+      base = interval === 1 ? 'Every Week' : `Every ${interval} Weeks`;
+    }
+  } else if (freq === 'MONTHLY') {
+    if (parts['BYMONTHDAY']) {
+      base = interval === 1
+        ? `Every Month on day ${parts['BYMONTHDAY']}`
+        : `Every ${interval} Months on day ${parts['BYMONTHDAY']}`;
+    } else {
+      base = interval === 1 ? 'Every Month' : `Every ${interval} Months`;
+    }
+  } else {
+    base = rrule;
+  }
   if (parts['UNTIL']) {
     const y = parseInt(parts['UNTIL'].slice(0, 4));
     const mo = parseInt(parts['UNTIL'].slice(4, 6)) - 1;
@@ -88,6 +114,7 @@ export default function ScheduleDetailScreen() {
   const [item, setItem] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -130,6 +157,18 @@ export default function ScheduleDetailScreen() {
     } catch {
       Alert.alert('Error', 'Could not delete the event. Please try again.');
     }
+  };
+
+  const handleEditScope = (scope: EditScope) => {
+    if (!item) return;
+    setShowEditModal(false);
+    navigation.navigate('EditSchedule', {
+      id: item.id,
+      type: item.type as 'reminder' | 'appointment',
+      editScope: scope,
+      occurrenceDate: params.occurrenceDate ?? new Date(item.startDate).toISOString(),
+      occurrenceTime: params.occurrenceTime ?? item.time,
+    });
   };
 
   if (loading) {
@@ -178,12 +217,7 @@ export default function ScheduleDetailScreen() {
           </TouchableOpacity>
           {/* Edit */}
           <TouchableOpacity
-            onPress={() =>
-              navigation.navigate('EditSchedule', {
-                id: item.id,
-                type: item.type as 'reminder' | 'appointment',
-              })
-            }
+            onPress={() => repeating ? setShowEditModal(true) : handleEditScope('all')}
             className="p-2">
             <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
           </TouchableOpacity>
@@ -270,6 +304,15 @@ export default function ScheduleDetailScreen() {
         title={item.title}
         onDelete={handleDelete}
         onClose={() => setShowDeleteModal(false)}
+      />
+
+      {/* Edit scope modal */}
+      <EditScopeModal
+        visible={showEditModal}
+        isRepeating={repeating}
+        title={item.title}
+        onSelect={handleEditScope}
+        onClose={() => setShowEditModal(false)}
       />
     </SafeAreaView>
   );

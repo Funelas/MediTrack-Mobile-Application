@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
-import {addTask, updateTask} from '../database/services';
+import {addTask, updateTask, upsertOccurrence, deleteThisAndFollowing} from '../database/services';
 import {database} from '../database';
 import Task from '../database/models/Task';
 import {ScheduleStackParamList} from '../navigation/ScheduleStackNavigator';
@@ -24,21 +24,22 @@ import Clock from '../assets/svg_icons/clock.svg';
 const SIMPLE_REPEAT_OPTIONS = ['Does not repeat', 'Every day', 'Every week', 'Every month', 'Custom'];
 const REMINDER_OPTIONS = ['At time of event', '5 mins before', '15 mins before', '30 mins before', '1 hour before'];
 
-type RouteProps = RouteProp<ScheduleStackParamList, 'AddSchedule'>;
+// Accept both AddSchedule and EditSchedule route shapes
+type AddRouteProps = RouteProp<ScheduleStackParamList, 'AddSchedule'>;
+type EditRouteProps = RouteProp<ScheduleStackParamList, 'EditSchedule'>;
+type RouteProps = AddRouteProps | EditRouteProps;
 
 // ─── RRULE ↔ UI helpers ───────────────────────────────────────────────────────
 
-/** Build a simple RRULE from the non-custom picker options */
 function simpleRepeatToRRule(label: string): string {
   switch (label) {
     case 'Every day':   return 'FREQ=DAILY';
     case 'Every week':  return 'FREQ=WEEKLY';
     case 'Every month': return 'FREQ=MONTHLY';
-    default:            return 'FREQ=DAILY;COUNT=1'; // "Does not repeat"
+    default:            return 'FREQ=DAILY;COUNT=1';
   }
 }
 
-/** Derive a human-readable label from any stored RRULE string */
 function rruleToDisplayLabel(rrule: string): string {
   if (!rrule) return 'Does not repeat';
   const parts: Record<string, string> = {};
@@ -46,26 +47,21 @@ function rruleToDisplayLabel(rrule: string): string {
     const [k, v] = seg.split('=');
     if (k && v !== undefined) parts[k.trim()] = v.trim();
   });
-
   if (parts['COUNT'] === '1') return 'Does not repeat';
-
   const BYDAY_MAP: Record<string, string> = {
     SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
   };
   const NUM_TO_WEEK: Record<string, string> = {
     '1': '1st', '2': '2nd', '3': '3rd', '4': '4th', '-1': 'Last',
   };
-
   const freq = parts['FREQ'] ?? '';
   const interval = parts['INTERVAL'] ? parseInt(parts['INTERVAL']) : 1;
-
   let base = '';
   if (freq === 'DAILY') {
     base = interval === 1 ? 'Every Day' : `Every ${interval} Days`;
   } else if (freq === 'WEEKLY') {
     base = interval === 1 ? 'Every Week' : `Every ${interval} Weeks`;
     if (parts['BYDAY']) {
-      // check for positional (monthly) vs plain weekly days
       const isPositional = /^-?\d+[A-Z]{2}$/.test(parts['BYDAY']);
       if (!isPositional) {
         const days = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
@@ -86,8 +82,6 @@ function rruleToDisplayLabel(rrule: string): string {
   } else {
     return 'Custom';
   }
-
-  // ends suffix
   if (parts['UNTIL']) {
     const y = parts['UNTIL'].slice(0, 4);
     const mo = parseInt(parts['UNTIL'].slice(4, 6));
@@ -96,11 +90,9 @@ function rruleToDisplayLabel(rrule: string): string {
   } else if (parts['COUNT'] && parts['COUNT'] !== '1') {
     base += ` · ${parts['COUNT']} times`;
   }
-
   return base;
 }
 
-/** Decide if a stored RRULE came from the simple picker or the custom modal */
 function rruleIsCustom(rrule: string): boolean {
   if (!rrule) return false;
   const parts: Record<string, string> = {};
@@ -109,17 +101,12 @@ function rruleIsCustom(rrule: string): boolean {
     if (k && v !== undefined) parts[k.trim()] = v.trim();
   });
   if (parts['COUNT'] === '1') return false;
-  // custom if it has INTERVAL > 1, BYDAY with positional, or BYMONTHDAY
   if (parts['INTERVAL'] && parts['INTERVAL'] !== '1') return true;
   if (parts['BYMONTHDAY']) return true;
-  if (parts['BYDAY']) {
-    // positional BYDAY = custom monthly
-    if (/^-?\d+[A-Z]{2}$/.test(parts['BYDAY'])) return true;
-  }
+  if (parts['BYDAY'] && /^-?\d+[A-Z]{2}$/.test(parts['BYDAY'])) return true;
   return false;
 }
 
-/** Convert "HH:MM" to a Date for the time picker */
 function timeStrToDate(timeStr: string): Date {
   const [h, m] = timeStr.split(':').map(Number);
   const d = new Date();
@@ -127,14 +114,34 @@ function timeStrToDate(timeStr: string): Date {
   return d;
 }
 
+function deriveEndsType(rrule: string): string {
+  const parts: Record<string, string> = {};
+  rrule.split(';').forEach(seg => {
+    const [k, v] = seg.split('=');
+    if (k && v !== undefined) parts[k.trim()] = v.trim();
+  });
+  if (parts['UNTIL']) return 'on_date';
+  if (parts['COUNT'] && parts['COUNT'] !== '1') return 'after_occurrences';
+  return 'never';
+}
+
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function AddScheduleScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProps>();
-  const {type, id} = route.params;
+  const params = route.params as any;
+
+  const type: 'reminder' | 'appointment' = params.type;
+  const id: string | undefined = params.id;
+  const editScope: 'this' | 'this_and_following' | 'all' | undefined = params.editScope;
+  const occurrenceDate: string | undefined = params.occurrenceDate;
+  const occurrenceTime: string | undefined = params.occurrenceTime;
+
   const isEditMode = !!id;
   const isAppointment = type === 'appointment';
+  // single-occurrence edit — hides repeat picker, saves to occurrences table
+  const isSingleEdit = editScope === 'this';
 
   const [loading, setLoading] = useState(isEditMode);
   const [existingTask, setExistingTask] = useState<Task | null>(null);
@@ -147,10 +154,7 @@ export default function AddScheduleScreen() {
   const [reminder, setReminder] = useState('1 hour before');
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState(new Date());
-
-  // rrule is the source of truth for repeat — display label is derived
   const [rrule, setRrule] = useState('FREQ=DAILY;COUNT=1');
-  // which simple option is selected in the RadioSelectModal (or 'Custom')
   const [simpleRepeat, setSimpleRepeat] = useState('Does not repeat');
 
   // ── picker visibility ──
@@ -174,10 +178,15 @@ export default function AddScheduleScreen() {
         setLocation(task.location ?? '');
         setNotes(task.notes ?? '');
         setReminder(task.reminder ?? '1 hour before');
-        setDate(new Date(task.startDate));
-        setTime(timeStrToDate(task.time));
+        // for single-occurrence edit, pre-fill date/time from the occurrence
+        if (isSingleEdit && occurrenceDate) {
+          setDate(new Date(occurrenceDate));
+        } else {
+          setDate(new Date(task.startDate));
+        }
+        const preloadTime = (isSingleEdit && occurrenceTime) ? occurrenceTime : task.time;
+        setTime(timeStrToDate(preloadTime));
         setRrule(task.rrule);
-        // set the simple picker selection so RadioSelectModal shows correct value
         const isCustom = rruleIsCustom(task.rrule);
         if (isCustom) {
           setSimpleRepeat('Custom');
@@ -217,11 +226,9 @@ export default function AddScheduleScreen() {
     });
   };
 
-  // ── repeat handlers ──
   const handleSimpleRepeatSave = (value: string) => {
     setSimpleRepeat(value);
     if (value === 'Custom') {
-      // open the custom modal; rrule stays as-is until custom modal saves
       setShowCustomRepeat(true);
     } else {
       setRrule(simpleRepeatToRRule(value));
@@ -237,26 +244,57 @@ export default function AddScheduleScreen() {
   const handleSave = async () => {
     if (!validate()) return;
 
-    // derive endsType from rrule for storage
-    const parts: Record<string, string> = {};
-    rrule.split(';').forEach(seg => {
-      const [k, v] = seg.split('=');
-      if (k && v !== undefined) parts[k.trim()] = v.trim();
-    });
-    const endsType = parts['UNTIL']
-      ? 'on_date'
-      : parts['COUNT'] && parts['COUNT'] !== '1'
-      ? 'after_occurrences'
-      : 'never';
-
     try {
+      // ── scope: this event only ──
+      // Save overrides to the occurrences table; task rule is untouched
+      if (isSingleEdit && existingTask && occurrenceDate && occurrenceTime) {
+        await upsertOccurrence(
+          existingTask.id,
+          'task',
+          new Date(occurrenceDate),
+          occurrenceTime,
+          {
+            timeOverride: timeString !== occurrenceTime ? timeString : '',
+            titleOverride: name.trim() !== existingTask.title ? name.trim() : '',
+            notesOverride: notes !== existingTask.notes ? notes : '',
+          },
+        );
+        navigation.goBack();
+        return;
+      }
+
+      // ── scope: this and following ──
+      // Cut the existing task at the day before this occurrence, then create
+      // a new task starting from this occurrence's date with the edited values
+      if (editScope === 'this_and_following' && existingTask && occurrenceDate) {
+        const occDate = new Date(occurrenceDate);
+        // terminate the old series the day before
+        await deleteThisAndFollowing(existingTask, occDate);
+        // create new task from this date onward
+        await addTask({
+          title: name.trim(),
+          type,
+          startDate: occDate,
+          time: timeString,
+          rrule,
+          endsType: deriveEndsType(rrule),
+          reminder,
+          notes,
+          doctorClinic,
+          location,
+        });
+        navigation.goBack();
+        return;
+      }
+
+      // ── scope: all events (or non-repeating edit) ──
       if (isEditMode && existingTask) {
         await updateTask(existingTask, {
           title: name.trim(),
           startDate: date,
           time: timeString,
           rrule,
-          endsType,
+          endsType: deriveEndsType(rrule),
           reminder,
           notes,
           doctorClinic,
@@ -269,7 +307,7 @@ export default function AddScheduleScreen() {
           startDate: date,
           time: timeString,
           rrule,
-          endsType,
+          endsType: deriveEndsType(rrule),
           reminder,
           notes,
           doctorClinic,
@@ -282,9 +320,12 @@ export default function AddScheduleScreen() {
     }
   };
 
-  const screenTitle = isEditMode
-    ? isAppointment ? 'Edit Appointment' : 'Edit Reminder'
-    : isAppointment ? 'Add Appointment' : 'Add Reminder';
+  // ── screen title ──
+  const screenTitle = (() => {
+    if (!isEditMode) return isAppointment ? 'Add Appointment' : 'Add Reminder';
+    if (isSingleEdit) return isAppointment ? 'Edit This Appointment' : 'Edit This Reminder';
+    return isAppointment ? 'Edit Appointment' : 'Edit Reminder';
+  })();
 
   const saveLabel = isEditMode ? 'Save Changes'
     : isAppointment ? 'Save Appointment' : 'Save Reminder';
@@ -309,7 +350,17 @@ export default function AddScheduleScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4 pt-4">
+      {/* Single-occurrence notice */}
+      {isSingleEdit && (
+        <View className="mx-4 mt-3 px-4 py-2.5 bg-teal-50 rounded-xl border border-teal-200">
+          <Text className="text-teal-700 text-xs font-medium">
+            Editing this occurrence only — other events in the series won't be affected.
+          </Text>
+        </View>
+      )}
+
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        <View className="px-4 pt-4">
 
         {/* Name */}
         <Text className="text-gray-700 text-sm font-medium mb-2">
@@ -352,21 +403,24 @@ export default function AddScheduleScreen() {
         )}
 
         {/* Date & Time */}
-        <View className="flex-row gap-3 mb-4">
-          <View className="flex-1">
-            <Text className="text-gray-700 text-sm font-medium mb-2">Date</Text>
-            <TouchableOpacity
-              onPress={() => setShowDatePicker(true)}
-              className="flex-row items-center gap-x-2 border border-gray-200 rounded-xl px-4 py-3">
-              <Calendar width={20} height={20} color="black" />
-              <Text className="text-gray-600 text-sm">{formattedDate}</Text>
-            </TouchableOpacity>
-          </View>
+        <View className="flex-row gap-x-3">
+          {/* Date only shown when not single-edit (date of a single occurrence is fixed) */}
+          {!isSingleEdit && (
+            <View className="flex-1">
+              <Text className="text-gray-700 text-sm font-medium mb-2">Date</Text>
+              <TouchableOpacity
+                onPress={() => setShowDatePicker(true)}
+                className="flex-row justify-around items-center border border-gray-200 rounded-xl pl-3 pr-6 py-3">
+                <Calendar width={20} height={20} color="black" />
+                <Text className="text-gray-600 text-sm">{formattedDate}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <View className="flex-1">
             <Text className="text-gray-700 text-sm font-medium mb-2">Time</Text>
             <TouchableOpacity
               onPress={() => setShowTimePicker(true)}
-              className="flex-row items-center gap-x-2 border border-gray-200 rounded-xl px-4 py-3">
+              className="flex-row justify-around items-center border border-gray-200 rounded-xl pl-3 pr-6 py-3">
               <Clock width={20} height={20} color="black" />
               <Text className="text-gray-600 text-sm">{formattedTime}</Text>
             </TouchableOpacity>
@@ -387,17 +441,20 @@ export default function AddScheduleScreen() {
           </>
         )}
 
-        {/* Repeat */}
-        <Text className="text-gray-700 text-sm font-medium mb-2">Repeat</Text>
-        <TouchableOpacity
-          onPress={() => setShowRepeatModal(true)}
-          className="flex-row items-center justify-between border border-gray-200 rounded-xl px-4 py-3 mb-4">
-          {/* show the derived human-readable label, not the raw RRULE */}
-          <Text className="text-gray-600 text-sm flex-1 mr-2" numberOfLines={1}>
-            {repeatDisplayLabel}
-          </Text>
-          <Text className="text-gray-400 text-lg">›</Text>
-        </TouchableOpacity>
+        {/* Repeat — hidden for single-occurrence edits */}
+        {!isSingleEdit && (
+          <>
+            <Text className="text-gray-700 text-sm font-medium mb-2">Repeat</Text>
+            <TouchableOpacity
+              onPress={() => setShowRepeatModal(true)}
+              className="flex-row items-center justify-between border border-gray-200 rounded-xl px-4 py-3 mb-4">
+              <Text className="text-gray-600 text-sm flex-1 mr-2" numberOfLines={1}>
+                {repeatDisplayLabel}
+              </Text>
+              <Text className="text-gray-400 text-lg">›</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Reminder */}
         <Text className="text-gray-700 text-sm font-medium mb-2">Reminder</Text>
@@ -430,6 +487,7 @@ export default function AddScheduleScreen() {
           <Text className="text-white font-semibold text-base">{saveLabel}</Text>
         </TouchableOpacity>
 
+      </View>
       </ScrollView>
 
       {/* Date Picker */}

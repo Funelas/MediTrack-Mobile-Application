@@ -11,12 +11,17 @@ export type ScheduleStackParamList = {
   ScheduleDetail: {
     id: string;
     type: 'reminder' | 'appointment' | 'med';
-    /** ISO date string of the specific occurrence tapped (e.g. "2026-09-27") */
     occurrenceDate?: string;
-    /** HH:MM time of the occurrence */
     occurrenceTime?: string;
   };
-  EditSchedule: {id: string; type: 'reminder' | 'appointment'};
+  EditSchedule: {
+    id: string;
+    type: 'reminder' | 'appointment';
+    /** "this" = edit one occurrence, "this_and_following" = split series, "all" = edit rule */
+    editScope: 'this' | 'this_and_following' | 'all';
+    occurrenceDate?: string;
+    occurrenceTime?: string;
+  };
   MedicineDetail: {id: string};
 };
 

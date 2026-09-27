@@ -1,7 +1,7 @@
 import {appSchema, tableSchema} from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 4,
+  version: 5,
   tables: [
     tableSchema({
       name: 'medicines',
@@ -66,6 +66,9 @@ export const schema = appSchema({
         {name: 'is_done', type: 'boolean'},
         {name: 'is_cancelled', type: 'boolean'},
         {name: 'snoozed_until', type: 'number', isOptional: true},
+        {name: 'time_override', type: 'string', isOptional: true},   // overrides the rule time for this occurrence
+        {name: 'title_override', type: 'string', isOptional: true},  // overrides the task title for this occurrence
+        {name: 'notes_override', type: 'string', isOptional: true},  // overrides notes for this occurrence
         {name: 'created_at', type: 'number'},
       ],
     }),

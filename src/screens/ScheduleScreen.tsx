@@ -90,60 +90,57 @@ function formatWeekRange(weekStart: Date): string {
   return `${startStr} – ${endStr}`;
 }
 
-/**
- * Convert a stored RRULE string into a human-readable label.
- * e.g. "FREQ=DAILY;COUNT=1"         → "Does not repeat"
- *      "FREQ=DAILY"                  → "Every Day"
- *      "FREQ=WEEKLY"                 → "Every Week"
- *      "FREQ=MONTHLY"                → "Every Month"
- *      "FREQ=WEEKLY;BYDAY=MO,WE,FR"  → "Mon, Wed, Fri"
- *      "FREQ=DAILY;UNTIL=20261231"   → "Every Day until Dec 31, 2026"
- */
 function rruleToLabel(rrule: string): string {
   if (!rrule) return '—';
-
   const parts: Record<string, string> = {};
   rrule.split(';').forEach(seg => {
     const [k, v] = seg.split('=');
     if (k && v !== undefined) parts[k.trim()] = v.trim();
   });
-
   const freq = parts['FREQ'] ?? '';
-
-  // one-off
+  const interval = parts['INTERVAL'] ? parseInt(parts['INTERVAL']) : 1;
   if (parts['COUNT'] === '1') return 'Does not repeat';
-
-  // day-of-week mapping
   const BYDAY_MAP: Record<string, string> = {
     SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
   };
-
+  const NUM_TO_WEEK: Record<string, string> = {
+    '1': '1st', '2': '2nd', '3': '3rd', '4': '4th', '-1': 'Last',
+  };
   let base = '';
-  if (parts['BYDAY']) {
-    base = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
-  } else if (freq === 'DAILY') {
-    base = 'Every Day';
+  if (freq === 'DAILY') {
+    base = interval === 1 ? 'Every Day' : `Every ${interval} Days`;
   } else if (freq === 'WEEKLY') {
-    base = 'Every Week';
+    if (parts['BYDAY']) {
+      const match = parts['BYDAY'].match(/^(-?\d+)([A-Z]{2})$/);
+      if (match) {
+        base = `Every ${NUM_TO_WEEK[match[1]] ?? ''} ${BYDAY_MAP[match[2]] ?? ''}`;
+        if (interval > 1) base += ` (every ${interval} months)`;
+      } else {
+        const days = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
+        base = interval === 1 ? `Every Week on ${days}` : `Every ${interval} Weeks on ${days}`;
+      }
+    } else {
+      base = interval === 1 ? 'Every Week' : `Every ${interval} Weeks`;
+    }
   } else if (freq === 'MONTHLY') {
-    base = 'Every Month';
+    if (parts['BYMONTHDAY']) {
+      base = interval === 1
+        ? `Every Month on day ${parts['BYMONTHDAY']}`
+        : `Every ${interval} Months on day ${parts['BYMONTHDAY']}`;
+    } else {
+      base = interval === 1 ? 'Every Month' : `Every ${interval} Months`;
+    }
   } else {
-    base = rrule; // fallback: show raw if unrecognised
+    base = rrule;
   }
-
-  // ends modifier
   if (parts['UNTIL']) {
     const y = parseInt(parts['UNTIL'].slice(0, 4));
     const mo = parseInt(parts['UNTIL'].slice(4, 6)) - 1;
     const dy = parseInt(parts['UNTIL'].slice(6, 8));
-    const untilLabel = new Date(y, mo, dy).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-    });
-    base += ` until ${untilLabel}`;
+    base += ` until ${new Date(y, mo, dy).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}`;
   } else if (parts['COUNT'] && parts['COUNT'] !== '1') {
     base += ` · ${parts['COUNT']} times`;
   }
-
   return base;
 }
 

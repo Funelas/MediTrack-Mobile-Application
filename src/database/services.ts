@@ -190,9 +190,10 @@ export type VirtualItem = {
   referenceId: string;
   referenceType: 'task' | 'med';
   title: string;
-  type: string;           // "reminder" | "appointment" | "med"
-  date: Date;             // the calendar day (midnight)
-  time: string;           // "HH:MM" 24h
+  type: string;
+  date: Date;
+  time: string;           // "HH:MM" — may be overridden per-occurrence
+  originalTime: string;   // "HH:MM" — always the rule's scheduled time (used as the occurrence key)
   isDone: boolean;
   isCancelled: boolean;
   snoozedUntil: number;
@@ -243,6 +244,7 @@ export async function getItemsForDateRange(rangeStart: Date, rangeEnd: Date): Pr
         type: task.type,
         date,
         time: task.time,
+        originalTime: task.time,
         isDone: false,
         isCancelled: false,
         snoozedUntil: 0,
@@ -270,6 +272,7 @@ export async function getItemsForDateRange(rangeStart: Date, rangeEnd: Date): Pr
           type: 'med',
           date,
           time,
+          originalTime: time,
           isDone: false,
           isCancelled: false,
           snoozedUntil: 0,
@@ -295,6 +298,10 @@ export async function getItemsForDateRange(rangeStart: Date, rangeEnd: Date): Pr
       match.isDone = occ.isDone;
       match.isCancelled = occ.isCancelled;
       match.snoozedUntil = occ.snoozedUntil ?? 0;
+      // apply per-occurrence overrides if present
+      if (occ.timeOverride) match.time = occ.timeOverride;
+      if (occ.titleOverride) match.title = occ.titleOverride;
+      if (occ.notesOverride) match.notes = occ.notesOverride;
     }
   }
 
@@ -325,7 +332,14 @@ export async function upsertOccurrence(
   referenceType: 'task' | 'med',
   scheduledDate: Date,
   scheduledTime: string,
-  update: {isDone?: boolean; isCancelled?: boolean; snoozedUntil?: number},
+  update: {
+    isDone?: boolean;
+    isCancelled?: boolean;
+    snoozedUntil?: number;
+    timeOverride?: string;
+    titleOverride?: string;
+    notesOverride?: string;
+  },
 ): Promise<void> {
   const dayStart = midnight(scheduledDate).getTime();
 
@@ -345,6 +359,9 @@ export async function upsertOccurrence(
         if (update.isDone !== undefined) occ.isDone = update.isDone!;
         if (update.isCancelled !== undefined) occ.isCancelled = update.isCancelled!;
         if (update.snoozedUntil !== undefined) occ.snoozedUntil = update.snoozedUntil!;
+        if (update.timeOverride !== undefined) occ.timeOverride = update.timeOverride!;
+        if (update.titleOverride !== undefined) occ.titleOverride = update.titleOverride!;
+        if (update.notesOverride !== undefined) occ.notesOverride = update.notesOverride!;
       });
     } else {
       await occurrences.create(occ => {
@@ -355,6 +372,9 @@ export async function upsertOccurrence(
         occ.isDone = update.isDone ?? false;
         occ.isCancelled = update.isCancelled ?? false;
         occ.snoozedUntil = update.snoozedUntil ?? 0;
+        occ.timeOverride = update.timeOverride ?? '';
+        occ.titleOverride = update.titleOverride ?? '';
+        occ.notesOverride = update.notesOverride ?? '';
         (occ as any)._raw.created_at = Date.now();
       });
     }
