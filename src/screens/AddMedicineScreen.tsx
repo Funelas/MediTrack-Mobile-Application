@@ -178,7 +178,11 @@ function Step1({data, setData, errors}: {data: any; setData: (d: any) => void; e
       <Text className="text-gray-700 text-sm font-medium mb-2">Medicine Name <Text className="text-red-400">*</Text></Text>
       <TextInput
         value={data.name}
-        onChangeText={v => setData({...data, name: v})}
+        onChangeText={v => {
+          // allow letters, spaces, hyphens and dots only (medicine names like "Co-Amoxiclav" or "Vit. C")
+          const sanitised = v.replace(/[^a-zA-Z\s\-.]/g, '');
+          setData({...data, name: sanitised});
+        }}
         placeholder="e.g Metformin"
         placeholderTextColor="#9ca3af"
         className={`border rounded-xl px-4 py-3 text-gray-800 text-sm mb-1 ${errors.name ? 'border-red-400' : 'border-gray-200'}`}
@@ -206,15 +210,24 @@ function Step1({data, setData, errors}: {data: any; setData: (d: any) => void; e
       />
 
       {/* Strength / Dosage */}
-      <Text className="text-gray-700 text-sm font-medium mb-2">Strength / Dosage <Text className="text-red-400">*</Text></Text>
-      <TextInput
-        value={data.dosage}
-        onChangeText={v => setData({...data, dosage: v})}
-        placeholder="e.g 500 mg"
-        placeholderTextColor="#9ca3af"
-        className={`border rounded-xl px-4 py-3 text-gray-800 text-sm mb-1 ${errors.dosage ? 'border-red-400' : 'border-gray-200'}`}
-      />
-      {errors.dosage && <Text className="text-red-400 text-xs mb-3">Dosage is required.</Text>}
+      <Text className="text-gray-700 text-sm font-medium mb-2">Strength / Dosage</Text>
+      <View className="flex-row gap-2 mb-4">
+        <TextInput
+          value={data.dosageAmount}
+          onChangeText={v => setData({...data, dosageAmount: v.replace(/[^0-9.]/g, '')})}
+          placeholder="500"
+          placeholderTextColor="#9ca3af"
+          keyboardType="decimal-pad"
+          className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm"
+        />
+        <TextInput
+          value={data.dosageUnit}
+          onChangeText={v => setData({...data, dosageUnit: v.replace(/[^a-zA-Z]/g, '')})}
+          placeholder="mg"
+          placeholderTextColor="#9ca3af"
+          className="w-20 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm"
+        />
+      </View>
 
       {/* Form */}
       <Text className="text-gray-700 text-sm font-medium mb-2">Form <Text className="text-red-400">*</Text></Text>
@@ -709,7 +722,7 @@ export default function AddMedicineScreen() {
   const [step3Errors, setStep3Errors] = useState<Record<string, boolean>>({});
 
   const [step1, setStep1] = useState({
-    color: '#1F2937', name: '', genericName: '', manufacturer: '', dosage: '', form: 'Tablet',
+    color: '#1F2937', name: '', genericName: '', manufacturer: '', dosage: '', dosageAmount: '', dosageUnit: '', form: 'Tablet',
   });
   const [step2, setStep2] = useState({
     startDate: new Date() as Date,
@@ -752,7 +765,7 @@ export default function AddMedicineScreen() {
         manufacturer: step1.manufacturer,
         color: step1.color,
         form: step1.form,
-        dosage: step1.dosage,
+        dosage: [step1.dosageAmount, step1.dosageUnit].filter(Boolean).join(' ') || '',
         intakeTimes: intakeTimeStrings,
         startDate: step2.startDate,
         rrule,
@@ -780,7 +793,6 @@ export default function AddMedicineScreen() {
     if (step === 1) {
       const errors: Record<string, boolean> = {};
       if (!step1.name.trim()) errors.name = true;
-      if (!step1.dosage.trim()) errors.dosage = true;
       setStep1Errors(errors);
       if (Object.keys(errors).length > 0) return;
     }
