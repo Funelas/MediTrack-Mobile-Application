@@ -49,6 +49,26 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
   // but we also need to know the days for buildRRule — stored separately
   const [customRepeatDays, setCustomRepeatDays] = useState<string[]>([]);
 
+  // ── validation ──
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
+    if (!name.trim()) e.name = `${isAppointment ? 'Appointment' : 'Reminder'} name is required.`;
+    if (isAppointment && !doctorClinic.trim()) e.doctorClinic = 'Doctor / Clinic is required.';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  // clear individual field error on change
+  const clearError = (field: string) => {
+    if (errors[field]) setErrors(prev => {
+      const next = {...prev};
+      delete next[field];
+      return next;
+    });
+  };
+
   const formattedDate = date.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
   const formattedTime = time.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
 
@@ -65,10 +85,7 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Required', `Please enter a ${isAppointment ? 'appointment' : 'reminder'} name.`);
-      return;
-    }
+    if (!validate()) return;
     try {
       const rrule = buildRRule(repeat, customRepeatDays);
       await addTask({
@@ -108,27 +125,41 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
 
         {/* Name */}
         <Text className="text-gray-700 text-sm font-medium mb-2">
-          {isAppointment ? 'Appointment Name:' : 'Reminder Name:'}
+          {isAppointment ? 'Appointment Name' : 'Reminder Name'} <Text className="text-red-400">*</Text>
         </Text>
         <TextInput
           value={name}
-          onChangeText={setName}
-          placeholder="Enter event name:"
+          onChangeText={v => { setName(v); clearError('name'); }}
+          placeholder="Enter event name"
           placeholderTextColor="#9ca3af"
-          className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm mb-4"
+          className={`border rounded-xl px-4 py-3 text-gray-800 text-sm mb-1 ${
+            errors.name ? 'border-red-400' : 'border-gray-200'
+          }`}
         />
+        {errors.name
+          ? <Text className="text-red-400 text-xs mb-3">{errors.name}</Text>
+          : <View className="mb-4" />
+        }
 
         {/* Doctor / Clinic */}
         {isAppointment && (
           <>
-            <Text className="text-gray-700 text-sm font-medium mb-2">Doctor / Clinic</Text>
+            <Text className="text-gray-700 text-sm font-medium mb-2">
+              Doctor / Clinic <Text className="text-red-400">*</Text>
+            </Text>
             <TextInput
               value={doctorClinic}
-              onChangeText={setDoctorClinic}
-              placeholder="Enter appointment office:"
+              onChangeText={v => { setDoctorClinic(v); clearError('doctorClinic'); }}
+              placeholder="Enter doctor or clinic name"
               placeholderTextColor="#9ca3af"
-              className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm mb-4"
+              className={`border rounded-xl px-4 py-3 text-gray-800 text-sm mb-1 ${
+                errors.doctorClinic ? 'border-red-400' : 'border-gray-200'
+              }`}
             />
+            {errors.doctorClinic
+              ? <Text className="text-red-400 text-xs mb-3">{errors.doctorClinic}</Text>
+              : <View className="mb-4" />
+            }
           </>
         )}
 
@@ -201,7 +232,10 @@ export default function AddScheduleScreen({route}: AddScheduleScreenProps) {
         />
 
         {/* Save Button */}
-        <TouchableOpacity onPress={handleSave} className="bg-teal-500 rounded-2xl py-4 items-center mb-8">
+        <TouchableOpacity
+          onPress={handleSave}
+          className="bg-teal-500 rounded-2xl py-4 items-center mb-8"
+          style={{opacity: Object.keys(errors).length > 0 ? 0.6 : 1}}>
           <Text className="text-white font-semibold text-base">{saveLabel}</Text>
         </TouchableOpacity>
 

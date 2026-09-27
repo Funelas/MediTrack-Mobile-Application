@@ -65,11 +65,15 @@ function typeLabel(type: string): string {
 function NextUpCard({
   item,
   now,
+  siblings,
   onMarkDone,
+  onViewAll,
 }: {
   item: VirtualItem | null;
   now: Date;
+  siblings: VirtualItem[];
   onMarkDone: (item: VirtualItem) => void;
+  onViewAll: () => void;
 }) {
   const {width} = useWindowDimensions();
   const scale = width / 390;
@@ -148,7 +152,7 @@ function NextUpCard({
         {/* header row */}
         <View className="flex-row justify-between items-center mb-3">
           <Text className="text-gray-400 text-xs font-semibold tracking-widest uppercase">
-            Next Up
+            {isOverdue ? 'Missed' : 'Next Up'}
           </Text>
           <View className="flex-row items-center gap-1">
             <Clock width={s(12)} height={s(12)} color={accentColor} />
@@ -222,12 +226,33 @@ function NextUpCard({
             {item.type === 'appointment' ? 'View Details' : 'Mark as Done'}
           </Text>
         </TouchableOpacity>
+
+        {/* siblings indicator */}
+        {siblings.length > 0 && (
+          <TouchableOpacity
+            onPress={onViewAll}
+            className="flex-row items-center justify-center gap-1 mt-2.5">
+            <View className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: accentColor}} />
+            <Text className="text-xs font-medium" style={{color: accentColor}}>
+              +{siblings.length} more at {formatTimeStr(item.time)}
+            </Text>
+            <Text className="text-xs" style={{color: accentColor}}>→</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
 }
 
 // ─── schedule row icon ────────────────────────────────────────────────────────
+
+function isItemOverdue(item: VirtualItem): boolean {
+  if (item.isDone) return false;
+  const [h, m] = item.time.split(':').map(Number);
+  const target = new Date();
+  target.setHours(h, m, 0, 0);
+  return target.getTime() < Date.now();
+}
 
 function getItemIcon(item: VirtualItem, size: number) {
   if (item.type === 'appointment')
@@ -249,6 +274,7 @@ export default function HomeScreen() {
 
   const [todayItems, setTodayItems] = useState<VirtualItem[]>([]);
   const [now, setNow] = useState(new Date());
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -263,18 +289,26 @@ export default function HomeScreen() {
 
   const doneCount = todayItems.filter(i => i.isDone).length;
 
-  // next pending item — closest to now (future first, then overdue)
-  const nextItem =
-    todayItems
-      .filter(i => !i.isDone)
-      .sort((a, b) => {
-        const ma = getMinutesFromNow(a.time);
-        const mb = getMinutesFromNow(b.time);
-        // future items sorted ascending; overdue sorted by how recently they passed
-        if (ma >= 0 && mb >= 0) return ma - mb;
-        if (ma < 0 && mb < 0) return mb - ma; // more recent overdue first
-        return ma >= 0 ? -1 : 1; // future before overdue
-      })[0] ?? null;
+  // nextItem logic:
+  // 1. Upcoming pending items first (soonest first) — always prioritised
+  // 2. Overdue items only surface when there are no upcoming items left today
+  const pendingItems = todayItems.filter(i => !i.isDone);
+  const upcomingItems = pendingItems
+    .filter(i => getMinutesFromNow(i.time) >= 0)
+    .sort((a, b) => getMinutesFromNow(a.time) - getMinutesFromNow(b.time));
+  const overdueItems = pendingItems
+    .filter(i => getMinutesFromNow(i.time) < 0)
+    .sort((a, b) => getMinutesFromNow(b.time) - getMinutesFromNow(a.time)); // most recent first
+  // show overdue only once all upcoming items are gone
+  const sortedPending = upcomingItems.length > 0
+    ? upcomingItems
+    : overdueItems;
+  const nextItem = sortedPending[0] ?? null;
+
+  // siblings: other pending items at the exact same time slot as nextItem
+  const siblings = nextItem
+    ? sortedPending.filter(i => i.key !== nextItem.key && i.time === nextItem.time)
+    : [];
 
   const handleMarkDone = async (item: VirtualItem) => {
     await upsertOccurrence(
@@ -289,7 +323,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
 
         {/* Header */}
         <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
@@ -313,7 +347,13 @@ export default function HomeScreen() {
         <View className="px-4 mt-4 gap-y-4 flex-column justify-center">
 
           {/* Next Up Card */}
-          <NextUpCard item={nextItem} now={now} onMarkDone={handleMarkDone} />
+          <NextUpCard
+            item={nextItem}
+            now={now}
+            siblings={siblings}
+            onMarkDone={handleMarkDone}
+            onViewAll={() => scrollRef.current?.scrollTo({y: 400, animated: true})}
+          />
 
           {/* Today's Schedule */}
           <View className="bg-white rounded-2xl p-4 shadow-sm">
@@ -333,32 +373,65 @@ export default function HomeScreen() {
               <Text className="text-gray-400 text-sm text-center py-4">No schedules for today.</Text>
             )}
 
-            {todayItems.map((item, index) => (
+            {[
+              // upcoming (not done) sorted by time ascending
+              ...todayItems
+                .filter(i => !i.isDone)
+                .sort((a, b) => {
+                  const [ah, am] = a.time.split(':').map(Number);
+                  const [bh, bm] = b.time.split(':').map(Number);
+                  return ah * 60 + am - (bh * 60 + bm);
+                }),
+              // done items after, sorted by time ascending
+              ...todayItems
+                .filter(i => i.isDone)
+                .sort((a, b) => {
+                  const [ah, am] = a.time.split(':').map(Number);
+                  const [bh, bm] = b.time.split(':').map(Number);
+                  return ah * 60 + am - (bh * 60 + bm);
+                }),
+            ].map((item, index, arr) => {
+              const overdue = isItemOverdue(item);
+              return (
               <View
                 key={item.key}
                 className={`border rounded-xl border-1 my-1 p-1 ${
-                  item.isDone ? 'border-[#C2DDD8] bg-[#DBE7E5]' : 'border-gray-200 bg-white'
+                  item.isDone
+                    ? 'border-[#C2DDD8] bg-[#DBE7E5]'
+                    : overdue
+                    ? 'border-red-200 bg-red-50'
+                    : 'border-gray-200 bg-white'
                 }`}>
                 <View className="flex-row items-center py-3 gap-3">
                   <TouchableOpacity
                     onPress={() => handleMarkDone(item)}
                     className={`w-7 h-7 border border-1 rounded-full flex justify-center items-center ${
-                      item.isDone ? 'border-[#139880] bg-[#C2DDD8]' : 'border-[#787878] bg-transparent'
+                      item.isDone
+                        ? 'border-[#139880] bg-[#C2DDD8]'
+                        : overdue
+                        ? 'border-red-400 bg-transparent'
+                        : 'border-[#787878] bg-transparent'
                     }`}>
                     {item.isDone ? <Check width={iconSm} height={iconSm} color="#139880" /> : null}
                   </TouchableOpacity>
                   {getItemIcon(item, iconMd)}
-                  <Text className="text-gray-400 text-sm w-16">
+                  <Text className={`text-sm w-16 ${overdue && !item.isDone ? 'text-red-400' : 'text-gray-400'}`}>
                     {formatTimeStr(item.time)}
                   </Text>
-                  <Text className="flex-1 text-gray-800 text-sm font-medium">{item.title}</Text>
+                  <View className="flex-1">
+                    <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
+                    {overdue && !item.isDone && (
+                      <Text className="text-red-400 text-xs mt-0.5">Missed</Text>
+                    )}
+                  </View>
                   <View style={{transform: [{rotate: '270deg'}]}}>
                     <Arrow width={20} height={20} />
                   </View>
                 </View>
-                {index < todayItems.length - 1 && <View className="h-px bg-gray-100" />}
+                {index < arr.length - 1 && <View className="h-px bg-gray-100" />}
               </View>
-            ))}
+              );
+            })}
           </View>
 
           {/* Health Summary Card */}

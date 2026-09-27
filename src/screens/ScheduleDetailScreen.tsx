@@ -34,6 +34,42 @@ function formatTimeStr(timeStr: string): string {
   return d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
 }
 
+/** Convert RRULE string to a human-readable label */
+function rruleToLabel(rrule: string): string {
+  if (!rrule) return '—';
+  const parts: Record<string, string> = {};
+  rrule.split(';').forEach(seg => {
+    const [k, v] = seg.split('=');
+    if (k && v !== undefined) parts[k.trim()] = v.trim();
+  });
+  const freq = parts['FREQ'] ?? '';
+  if (parts['COUNT'] === '1') return 'Does not repeat';
+  const BYDAY_MAP: Record<string, string> = {
+    SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
+  };
+  let base = '';
+  if (parts['BYDAY']) {
+    base = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
+  } else if (freq === 'DAILY') {
+    base = 'Every Day';
+  } else if (freq === 'WEEKLY') {
+    base = 'Every Week';
+  } else if (freq === 'MONTHLY') {
+    base = 'Every Month';
+  } else {
+    base = rrule;
+  }
+  if (parts['UNTIL']) {
+    const y = parseInt(parts['UNTIL'].slice(0, 4));
+    const mo = parseInt(parts['UNTIL'].slice(4, 6)) - 1;
+    const dy = parseInt(parts['UNTIL'].slice(6, 8));
+    base += ` until ${new Date(y, mo, dy).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}`;
+  } else if (parts['COUNT'] && parts['COUNT'] !== '1') {
+    base += ` · ${parts['COUNT']} times`;
+  }
+  return base;
+}
+
 export default function ScheduleDetailScreen() {
   const navigation = useNavigation<Nav>();
   const {params} = useRoute<Route>();
@@ -145,7 +181,7 @@ export default function ScheduleDetailScreen() {
               <DetailRow
                 icon={<Clock width={18} height={18} color="#6B7280" />}
                 label="Repeat"
-                value={item.rrule}
+                value={rruleToLabel(item.rrule)}
               />
               <View className="flex-row items-center gap-3 px-4 py-4">
                 <View className="w-9 h-9 rounded-xl bg-gray-100 items-center justify-center">

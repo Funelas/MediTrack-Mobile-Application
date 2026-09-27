@@ -66,6 +66,87 @@ function formatTimeStr(timeStr: string): string {
   return d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
 }
 
+/**
+ * Format the week header range.
+ * Same month:       "Sep 27 – Oct 3, 2026"
+ * Cross-year edge:  "Dec 28, 2025 – Jan 3, 2026"
+ */
+function formatWeekRange(weekStart: Date): string {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const sameYear = weekStart.getFullYear() === weekEnd.getFullYear();
+
+  const startStr = weekStart.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : {year: 'numeric'}),
+  });
+  const endStr = weekEnd.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  return `${startStr} – ${endStr}`;
+}
+
+/**
+ * Convert a stored RRULE string into a human-readable label.
+ * e.g. "FREQ=DAILY;COUNT=1"         → "Does not repeat"
+ *      "FREQ=DAILY"                  → "Every Day"
+ *      "FREQ=WEEKLY"                 → "Every Week"
+ *      "FREQ=MONTHLY"                → "Every Month"
+ *      "FREQ=WEEKLY;BYDAY=MO,WE,FR"  → "Mon, Wed, Fri"
+ *      "FREQ=DAILY;UNTIL=20261231"   → "Every Day until Dec 31, 2026"
+ */
+function rruleToLabel(rrule: string): string {
+  if (!rrule) return '—';
+
+  const parts: Record<string, string> = {};
+  rrule.split(';').forEach(seg => {
+    const [k, v] = seg.split('=');
+    if (k && v !== undefined) parts[k.trim()] = v.trim();
+  });
+
+  const freq = parts['FREQ'] ?? '';
+
+  // one-off
+  if (parts['COUNT'] === '1') return 'Does not repeat';
+
+  // day-of-week mapping
+  const BYDAY_MAP: Record<string, string> = {
+    SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
+  };
+
+  let base = '';
+  if (parts['BYDAY']) {
+    base = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
+  } else if (freq === 'DAILY') {
+    base = 'Every Day';
+  } else if (freq === 'WEEKLY') {
+    base = 'Every Week';
+  } else if (freq === 'MONTHLY') {
+    base = 'Every Month';
+  } else {
+    base = rrule; // fallback: show raw if unrecognised
+  }
+
+  // ends modifier
+  if (parts['UNTIL']) {
+    const y = parseInt(parts['UNTIL'].slice(0, 4));
+    const mo = parseInt(parts['UNTIL'].slice(4, 6)) - 1;
+    const dy = parseInt(parts['UNTIL'].slice(6, 8));
+    const untilLabel = new Date(y, mo, dy).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+    base += ` until ${untilLabel}`;
+  } else if (parts['COUNT'] && parts['COUNT'] !== '1') {
+    base += ` · ${parts['COUNT']} times`;
+  }
+
+  return base;
+}
+
 // ─── ScheduleScreen ───────────────────────────────────────────────────────────
 
 export default function ScheduleScreen() {
@@ -81,7 +162,6 @@ export default function ScheduleScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPriorDays, setShowPriorDays] = useState(false);
 
-  // All expanded virtual items for the visible window
   const [allItems, setAllItems] = useState<VirtualItem[]>([]);
 
   const scrollRef = useRef<ScrollView>(null);
@@ -93,7 +173,6 @@ export default function ScheduleScreen() {
     return d;
   });
 
-  // Load items for a 3-month window centred on current month (covers month + week views)
   const loadItems = useCallback(() => {
     const rangeStart = new Date(currentYear, currentMonth - 1, 1);
     const rangeEnd = new Date(currentYear, currentMonth + 2, 0);
@@ -107,11 +186,14 @@ export default function ScheduleScreen() {
   const itemsForDay = (d: Date): VirtualItem[] =>
     allItems.filter(item => isSameDay(item.date, d));
 
-  const daysWithItems = new Set(
+  // dot = appointments only
+  const daysWithAppointments = new Set(
     allItems
-      .filter(item => {
-        return item.date.getFullYear() === currentYear && item.date.getMonth() === currentMonth;
-      })
+      .filter(item =>
+        item.type === 'appointment' &&
+        item.date.getFullYear() === currentYear &&
+        item.date.getMonth() === currentMonth,
+      )
       .map(item => item.date.getDate()),
   );
 
@@ -134,10 +216,7 @@ export default function ScheduleScreen() {
     if (tab === activeTab) return;
     setDisplayedTab(tab);
     setIsLoading(true);
-    setTimeout(() => {
-      setActiveTab(tab);
-      setIsLoading(false);
-    }, 600);
+    setTimeout(() => { setActiveTab(tab); setIsLoading(false); }, 600);
   };
 
   const prevMonth = () => {
@@ -149,43 +228,37 @@ export default function ScheduleScreen() {
     else setCurrentMonth(m => m + 1);
   };
   const prevWeek = () => {
-    const d = new Date(currentWeekStart);
-    d.setDate(d.getDate() - 7);
-    setCurrentWeekStart(d);
+    const d = new Date(currentWeekStart); d.setDate(d.getDate() - 7); setCurrentWeekStart(d);
   };
   const nextWeek = () => {
-    const d = new Date(currentWeekStart);
-    d.setDate(d.getDate() + 7);
-    setCurrentWeekStart(d);
+    const d = new Date(currentWeekStart); d.setDate(d.getDate() + 7); setCurrentWeekStart(d);
   };
 
   const handleToggleDone = async (item: VirtualItem) => {
     await upsertOccurrence(
-      item.referenceId,
-      item.referenceType,
-      item.date,
-      item.time,
-      {isDone: !item.isDone},
+      item.referenceId, item.referenceType, item.date, item.time, {isDone: !item.isDone},
     );
     loadItems();
   };
 
-  // ── item card icon ──
+  // ── overdue check (today only) ──
+  function isItemOverdue(item: VirtualItem): boolean {
+    if (item.isDone) return false;
+    if (!isSameDay(item.date, today)) return false;
+    const [h, m] = item.time.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    return target.getTime() < Date.now();
+  }
 
+  // ── icons ──
   const cardIcon = (type: string, isDone: boolean) => {
-    const doneColor = '#139880';
-    const pendingMed = '#14B8A6';
-    const pendingBell = '#E2EA00';
-    const pendingCal = '#F15C5C';
+    const done = '#139880';
     switch (type) {
-      case 'med':
-        return <Pills width={25} height={25} color={isDone ? doneColor : pendingMed} />;
-      case 'reminder':
-        return <Bell width={25} height={25} color={isDone ? doneColor : pendingBell} />;
-      case 'appointment':
-        return <Calendar width={25} height={25} color={isDone ? doneColor : pendingCal} />;
-      default:
-        return <Plus width={25} height={25} color="#FFFFFC" />;
+      case 'med':         return <Pills    width={25} height={25} color={isDone ? done : '#14B8A6'} />;
+      case 'reminder':    return <Bell     width={25} height={25} color={isDone ? done : '#E2EA00'} />;
+      case 'appointment': return <Calendar width={25} height={25} color={isDone ? done : '#F15C5C'} />;
+      default:            return <Plus     width={25} height={25} color="#FFFFFC" />;
     }
   };
 
@@ -196,56 +269,56 @@ export default function ScheduleScreen() {
   };
 
   // ── ScheduleItem row ──
-
   const ScheduleItem = ({
-    item,
-    rowKey,
-    showDivider,
-  }: {
-    item: VirtualItem;
-    rowKey: string;
-    showDivider: boolean;
-  }) => (
-    <View>
-      <TouchableOpacity
-        onPress={() => {
-          if (item.referenceType === 'task') {
-            navigation.navigate('ScheduleDetail', {id: item.referenceId, type: item.type as any});
-          } else if (item.referenceType === 'med') {
-            navigation.navigate('MedicineDetail', {id: item.referenceId});
-          }
-        }}
-        className="flex-row items-center px-4 py-3 gap-3">
-        <View
-          className={`w-1 h-10 rounded-full ${
-            item.type === 'appointment' ? 'bg-blue-400' : 'bg-transparent'
-          }`}
-        />
-        <Text className="text-gray-400 text-xs w-16">{formatTimeStr(item.time)}</Text>
-        <View className="flex justify-center items-center rounded-full">
-          {cardIcon(item.type, item.isDone)}
-        </View>
-        <View className="flex-1">
-          <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
-          <Text className="text-gray-400 text-xs mt-0.5">{subLabel(item)}</Text>
-        </View>
+    item, rowKey, showDivider,
+  }: {item: VirtualItem; rowKey: string; showDivider: boolean}) => {
+    const overdue = isItemOverdue(item);
+    return (
+      <View>
         <TouchableOpacity
-          onPress={() => handleToggleDone(item)}
-          className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-            item.isDone ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
-          }`}>
-          {item.isDone && <Text className="text-white text-xs font-bold">✓</Text>}
+          onPress={() => {
+            if (item.referenceType === 'task') {
+              navigation.navigate('ScheduleDetail', {id: item.referenceId, type: item.type as any});
+            } else if (item.referenceType === 'med') {
+              navigation.navigate('MedicineDetail', {id: item.referenceId});
+            }
+          }}
+          className={`flex-row items-center px-4 py-3 gap-3 rounded-xl ${overdue ? 'bg-red-50' : ''}`}>
+          <View
+            className={`w-1 h-10 rounded-full ${
+              item.type === 'appointment' ? 'bg-blue-400' : overdue ? 'bg-red-300' : 'bg-transparent'
+            }`}
+          />
+          <View className="w-16">
+            <Text className={`text-xs ${overdue ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
+              {formatTimeStr(item.time)}
+            </Text>
+            {overdue && <Text className="text-red-400 text-xs">Missed</Text>}
+          </View>
+          <View className="flex justify-center items-center rounded-full">
+            {cardIcon(item.type, item.isDone)}
+          </View>
+          <View className="flex-1">
+            <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
+            <Text className="text-gray-400 text-xs mt-0.5">{subLabel(item)}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handleToggleDone(item)}
+            className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
+              item.isDone ? 'bg-teal-500 border-teal-500' : overdue ? 'border-red-300' : 'border-gray-300'
+            }`}>
+            {item.isDone && <Text className="text-white text-xs font-bold">✓</Text>}
+          </TouchableOpacity>
         </TouchableOpacity>
-      </TouchableOpacity>
-      {showDivider && <View className="h-px bg-gray-100 ml-4" />}
-    </View>
-  );
+        {showDivider && <View className="h-px bg-gray-100 ml-4" />}
+      </View>
+    );
+  };
 
   // ─── render ───────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" style={{position: 'relative'}}>
-      {/* Header */}
       <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
         <Text className="text-white text-2xl font-bold">Schedule</Text>
         <Text className="text-teal-100 text-sm mt-1">
@@ -256,7 +329,7 @@ export default function ScheduleScreen() {
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
         <View className="px-4 mt-4">
 
-          {/* Month / Week Toggle + Filters */}
+          {/* Tab toggle + filters */}
           <View className="flex-row justify-between items-center mb-4 gap-3">
             <View className="flex-row bg-white rounded-xl p-1">
               {(['Month', 'Week'] as const).map(tab => (
@@ -264,10 +337,7 @@ export default function ScheduleScreen() {
                   key={tab}
                   onPress={() => switchTab(tab)}
                   className={`px-4 py-2 rounded-lg ${displayedTab === tab ? 'bg-teal-500' : ''}`}>
-                  <Text
-                    className={`text-sm font-medium ${
-                      displayedTab === tab ? 'text-white' : 'text-gray-500'
-                    }`}>
+                  <Text className={`text-sm font-medium ${displayedTab === tab ? 'text-white' : 'text-gray-500'}`}>
                     {tab}
                   </Text>
                 </TouchableOpacity>
@@ -283,10 +353,11 @@ export default function ScheduleScreen() {
             <ScheduleSkeleton tab={displayedTab} />
           ) : (
             <>
-              {/* Calendar */}
+              {/* Calendar card */}
               <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
                 {activeTab === 'Month' ? (
                   <>
+                    {/* month nav */}
                     <View className="flex-row justify-between items-center mb-3">
                       <TouchableOpacity onPress={prevMonth} className="p-1">
                         <Text className="text-gray-500 text-lg">‹</Text>
@@ -298,6 +369,7 @@ export default function ScheduleScreen() {
                         <Text className="text-gray-500 text-lg">›</Text>
                       </TouchableOpacity>
                     </View>
+                    {/* day headers */}
                     <View className="flex-row mb-2">
                       {DAYS.map(day => (
                         <View key={day} className="flex-1 items-center">
@@ -305,6 +377,7 @@ export default function ScheduleScreen() {
                         </View>
                       ))}
                     </View>
+                    {/* grid */}
                     <View className="flex-row flex-wrap">
                       {calendarCells.map((day, index) => {
                         const isToday =
@@ -312,38 +385,22 @@ export default function ScheduleScreen() {
                           currentMonth === today.getMonth() &&
                           currentYear === today.getFullYear();
                         const isSelected = day === selectedDay;
-                        const hasDot = day ? daysWithItems.has(day) : false;
+                        const hasDot = day ? daysWithAppointments.has(day) : false;
                         return (
                           <View key={index} className="w-[14.28%] items-center mb-1">
                             {day ? (
-                              <TouchableOpacity
-                                onPress={() => setSelectedDay(day)}
-                                className="items-center">
-                                <View
-                                  className={`w-8 h-8 items-center justify-center rounded-full ${
-                                    isSelected
-                                      ? 'bg-teal-500'
-                                      : isToday
-                                      ? 'border border-teal-500'
-                                      : ''
+                              <TouchableOpacity onPress={() => setSelectedDay(day)} className="items-center">
+                                <View className={`w-8 h-8 items-center justify-center rounded-full ${
+                                  isSelected ? 'bg-teal-500' : isToday ? 'border border-teal-500' : ''
+                                }`}>
+                                  <Text className={`text-sm ${
+                                    isSelected ? 'text-white font-bold' : isToday ? 'text-teal-500 font-bold' : 'text-gray-700'
                                   }`}>
-                                  <Text
-                                    className={`text-sm ${
-                                      isSelected
-                                        ? 'text-white font-bold'
-                                        : isToday
-                                        ? 'text-teal-500 font-bold'
-                                        : 'text-gray-700'
-                                    }`}>
                                     {day}
                                   </Text>
                                 </View>
                                 {hasDot && (
-                                  <View
-                                    className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
-                                      isSelected ? 'bg-white' : 'bg-teal-400'
-                                    }`}
-                                  />
+                                  <View className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-teal-200' : 'bg-teal-400'}`} />
                                 )}
                               </TouchableOpacity>
                             ) : (
@@ -356,17 +413,19 @@ export default function ScheduleScreen() {
                   </>
                 ) : (
                   <>
+                    {/* week nav — shows date range instead of just month */}
                     <View className="flex-row justify-between items-center mb-3">
                       <TouchableOpacity onPress={prevWeek} className="p-1">
                         <Text className="text-gray-500 text-lg">‹</Text>
                       </TouchableOpacity>
-                      <Text className="text-gray-800 font-semibold">
-                        {MONTH_NAMES[currentWeekStart.getMonth()]} {currentWeekStart.getFullYear()}
+                      <Text className="text-gray-800 font-semibold text-xs">
+                        {formatWeekRange(currentWeekStart)}
                       </Text>
                       <TouchableOpacity onPress={nextWeek} className="p-1">
                         <Text className="text-gray-500 text-lg">›</Text>
                       </TouchableOpacity>
                     </View>
+                    {/* day headers */}
                     <View className="flex-row mb-2">
                       {DAYS.map(day => (
                         <View key={day} className="flex-1 items-center">
@@ -374,13 +433,16 @@ export default function ScheduleScreen() {
                         </View>
                       ))}
                     </View>
+                    {/* week day cells */}
                     <View className="flex-row">
                       {weekDates.map((date, i) => {
                         const isToday = date.toDateString() === today.toDateString();
                         const isSelected =
                           date.toDateString() ===
                           new Date(currentYear, currentMonth, selectedDay).toDateString();
-                        const hasDot = allItems.some(item => isSameDay(item.date, date));
+                        const hasDot = allItems.some(
+                          item => item.type === 'appointment' && isSameDay(item.date, date),
+                        );
                         return (
                           <View key={i} className="flex-1 items-center">
                             <TouchableOpacity
@@ -395,31 +457,17 @@ export default function ScheduleScreen() {
                                 }
                               }}
                               className="items-center">
-                              <View
-                                className={`w-8 h-8 items-center justify-center rounded-full ${
-                                  isSelected
-                                    ? 'bg-teal-500'
-                                    : isToday
-                                    ? 'border border-teal-500'
-                                    : ''
+                              <View className={`w-8 h-8 items-center justify-center rounded-full ${
+                                isSelected ? 'bg-teal-500' : isToday ? 'border border-teal-500' : ''
+                              }`}>
+                                <Text className={`text-sm ${
+                                  isSelected ? 'text-white font-bold' : isToday ? 'text-teal-500 font-bold' : 'text-gray-700'
                                 }`}>
-                                <Text
-                                  className={`text-sm ${
-                                    isSelected
-                                      ? 'text-white font-bold'
-                                      : isToday
-                                      ? 'text-teal-500 font-bold'
-                                      : 'text-gray-700'
-                                  }`}>
                                   {date.getDate()}
                                 </Text>
                               </View>
                               {hasDot && (
-                                <View
-                                  className={`w-1.5 h-1.5 rounded-full mt-0.5 ${
-                                    isSelected ? 'bg-white' : 'bg-teal-400'
-                                  }`}
-                                />
+                                <View className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-teal-200' : 'bg-teal-400'}`} />
                               )}
                             </TouchableOpacity>
                           </View>
@@ -428,13 +476,15 @@ export default function ScheduleScreen() {
                     </View>
                   </>
                 )}
+
+                {/* legend */}
                 <View className="flex-row justify-center mt-3 gap-1 items-center">
                   <View className="w-2 h-2 rounded-full bg-teal-400" />
-                  <Text className="text-gray-400 text-xs">Has items</Text>
+                  <Text className="text-gray-400 text-xs">Has appointment</Text>
                 </View>
               </View>
 
-              {/* Schedule List */}
+              {/* Schedule list */}
               {activeTab === 'Month' ? (
                 (() => {
                   const selected = new Date(currentYear, currentMonth, selectedDay);
@@ -443,9 +493,7 @@ export default function ScheduleScreen() {
                     ? 'Today'
                     : selected.toLocaleDateString('en-US', {weekday: 'long'});
                   const dateLabel = selected.toLocaleDateString('en-US', {
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
+                    month: 'long', day: 'numeric', year: 'numeric',
                   });
                   return (
                     <>
@@ -454,20 +502,17 @@ export default function ScheduleScreen() {
                         <Text className="text-gray-400 text-sm">· {dateLabel}</Text>
                       </View>
                       <View className="bg-white rounded-2xl shadow-sm mb-6 overflow-hidden">
-                        {items.length === 0 ? (
-                          <Text className="text-gray-400 text-sm text-center py-6">
-                            No schedules for this day.
-                          </Text>
-                        ) : (
-                          items.map((item, index) => (
-                            <ScheduleItem
-                              key={item.key}
-                              item={item}
-                              rowKey={item.key}
-                              showDivider={index < items.length - 1}
-                            />
-                          ))
-                        )}
+                        {items.length === 0
+                          ? <Text className="text-gray-400 text-sm text-center py-6">No schedules for this day.</Text>
+                          : items.map((item, index) => (
+                              <ScheduleItem
+                                key={item.key}
+                                item={item}
+                                rowKey={item.key}
+                                showDivider={index < items.length - 1}
+                              />
+                            ))
+                        }
                       </View>
                     </>
                   );
@@ -477,13 +522,10 @@ export default function ScheduleScreen() {
                   <TouchableOpacity
                     onPress={() => setShowPriorDays(p => !p)}
                     className="flex-row items-center gap-2 mb-3">
-                    <View
-                      className={`w-4 h-4 rounded border-2 items-center justify-center ${
-                        showPriorDays ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
-                      }`}>
-                      {showPriorDays && (
-                        <Text className="text-white text-xs font-bold">✓</Text>
-                      )}
+                    <View className={`w-4 h-4 rounded border-2 items-center justify-center ${
+                      showPriorDays ? 'bg-teal-500 border-teal-500' : 'border-gray-300'
+                    }`}>
+                      {showPriorDays && <Text className="text-white text-xs font-bold">✓</Text>}
                     </View>
                     <Text className="text-gray-600 text-sm">Show Prior Days</Text>
                   </TouchableOpacity>
@@ -493,37 +535,30 @@ export default function ScheduleScreen() {
                       ? 'Today'
                       : date.toLocaleDateString('en-US', {weekday: 'long'});
                     const dateLabel = date.toLocaleDateString('en-US', {
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric',
+                      month: 'long', day: 'numeric', year: 'numeric',
                     });
                     const key = date.toDateString();
                     return (
                       <View
                         key={key}
                         className="mb-4"
-                        onLayout={e => {
-                          dayOffsets.current[key] = e.nativeEvent.layout.y;
-                        }}>
+                        onLayout={e => { dayOffsets.current[key] = e.nativeEvent.layout.y; }}>
                         <View className="flex-row items-center gap-2 mb-2">
                           <Text className="text-gray-800 font-semibold">{dayLabel}</Text>
                           <Text className="text-gray-400 text-sm">· {dateLabel}</Text>
                         </View>
                         <View className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                          {items.length === 0 ? (
-                            <Text className="text-gray-400 text-sm text-center py-6">
-                              No schedules for this day.
-                            </Text>
-                          ) : (
-                            items.map((item, index) => (
-                              <ScheduleItem
-                                key={item.key}
-                                item={item}
-                                rowKey={`${key}-${item.key}`}
-                                showDivider={index < items.length - 1}
-                              />
-                            ))
-                          )}
+                          {items.length === 0
+                            ? <Text className="text-gray-400 text-sm text-center py-6">No schedules for this day.</Text>
+                            : items.map((item, index) => (
+                                <ScheduleItem
+                                  key={item.key}
+                                  item={item}
+                                  rowKey={`${key}-${item.key}`}
+                                  showDivider={index < items.length - 1}
+                                />
+                              ))
+                          }
                         </View>
                       </View>
                     );
@@ -536,11 +571,7 @@ export default function ScheduleScreen() {
       </ScrollView>
 
       <FloatingAddButton onPress={() => setShowAddModal(true)} />
-
-      <AddToScheduleModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-      />
+      <AddToScheduleModal visible={showAddModal} onClose={() => setShowAddModal(false)} />
     </SafeAreaView>
   );
 }
