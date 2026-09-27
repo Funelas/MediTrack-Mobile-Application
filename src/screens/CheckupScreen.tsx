@@ -171,7 +171,7 @@ const statusIcon: Record<ResultStatus, string> = {
 function StatusBadge({status}: {status: ResultStatus}) {
   return (
     <View
-      className="flex-row items-center gap-1 px-2 py-0.5 rounded-full"
+      className="flex-row items-center gap-x-1 px-2 py-0.5 rounded-full"
       style={{backgroundColor: statusBg[status]}}>
       <Text style={{color: statusColor[status], fontSize: 10}}>{statusIcon[status]}</Text>
       <Text style={{color: statusColor[status]}} className="text-xs font-semibold">
@@ -286,15 +286,15 @@ export default function CheckupScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
-          <Text className="text-white text-2xl font-bold">Checkup Reports</Text>
-          <Text className="text-teal-100 text-sm mt-1">
-            View and track your health results over time.
-          </Text>
-        </View>
+      {/* Header */}
+      <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
+        <Text className="text-white text-2xl font-bold">Checkup Reports</Text>
+        <Text className="text-teal-100 text-sm mt-1">
+          View and track your health results over time.
+        </Text>
+      </View>
 
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View className="px-4 mt-4">
 
           {/* Category Dropdown */}
@@ -303,7 +303,7 @@ export default function CheckupScreen() {
             <TouchableOpacity
               onPress={() => setShowCategoryDropdown(v => !v)}
               className="flex-row items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3">
-              <View className="flex-row items-center gap-2">
+              <View className="flex-row items-center gap-x-2">
                 <CategoryIcon iconKey={selectedCategory.icon} size={18} color="#14B8A6" />
                 <Text className="text-gray-700 text-sm font-medium">{selectedCategory.label}</Text>
               </View>
@@ -318,7 +318,7 @@ export default function CheckupScreen() {
                   <TouchableOpacity
                     key={cat.id}
                     onPress={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
-                    className={`flex-row items-center gap-3 px-4 py-3 ${selectedCategory.id === cat.id ? 'bg-teal-50' : 'bg-white'} ${i < categories.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    className={`flex-row items-center gap-x-3 px-4 py-3 ${selectedCategory.id === cat.id ? 'bg-teal-50' : 'bg-white'} ${i < categories.length - 1 ? 'border-b border-gray-100' : ''}`}>
                     <CategoryIcon iconKey={cat.icon} size={18} color={selectedCategory.id === cat.id ? '#14B8A6' : '#6B7280'} />
                     <Text className={`text-sm ${selectedCategory.id === cat.id ? 'text-teal-600 font-medium' : 'text-gray-700'}`}>
                       {cat.label}
