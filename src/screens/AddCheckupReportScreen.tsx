@@ -7,7 +7,7 @@ import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
-
+import Search from '../assets/svg_icons/magnifying-glass.svg'
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
 
 const EXISTING_CATEGORIES: {id: string; label: string; icon: CategoryIconKey}[] = [
@@ -35,7 +35,8 @@ export default function AddCheckupReportScreen() {
         </Text>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4">
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        <View className="px-4">
         {/* Title */}
         <View className="items-center mt-8 mb-6">
           <Text className="text-gray-800 font-bold text-lg text-center">
@@ -46,25 +47,24 @@ export default function AddCheckupReportScreen() {
           </Text>
         </View>
 
-        {/* Search + Add */}
-        <View className="flex-row items-center gap-2 mb-4">
-          <View className="flex-1 flex-row items-center bg-gray-100 rounded-xl px-3 py-2.5 gap-2">
-            <Text className="text-gray-400 text-sm">🔍</Text>
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search keywords..."
-              placeholderTextColor="#9ca3af"
-              className="flex-1 text-gray-700 text-sm"
-            />
-          </View>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('CreateCategory')}
-            className="flex-row items-center gap-1 bg-teal-500 rounded-xl px-4 py-2.5">
-            <Text className="text-white text-sm font-semibold">Add</Text>
-            <Text className="text-white text-base font-bold">+</Text>
-          </TouchableOpacity>
+        {/* Search */}
+        <View className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2 gap-x-2 mb-3">
+          <Search width={20} height={20} color="#9ca3af" />
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search categories..."
+            placeholderTextColor="#9ca3af"
+            className="flex-1 text-gray-700 text-sm"
+          />
         </View>
+
+        {/* Create new category */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('CreateCategory')}
+          className="flex-row items-center justify-center gap-x-2 bg-teal-500 rounded-xl px-4 py-3 mb-5">
+          <Text className="text-white text-sm font-semibold">+ Create New Category</Text>
+        </TouchableOpacity>
 
         {/* Category List */}
         <View className="gap-2">
@@ -89,6 +89,7 @@ export default function AddCheckupReportScreen() {
         </View>
 
         <View className="h-24" />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
