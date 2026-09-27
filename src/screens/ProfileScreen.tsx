@@ -72,14 +72,14 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      {/* Header */}
-      <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl mb-2">
-        <Text className="text-white text-2xl font-bold">Profile</Text>
-        <Text className="text-teal-100 text-sm mt-1">Manage your account and preferences.</Text>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Avatar Card — overlaps header */}
+        {/* Header */}
+        <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl mb-2">
+          <Text className="text-white text-2xl font-bold">Profile</Text>
+          <Text className="text-teal-100 text-sm mt-1">Manage your account and preferences.</Text>
+        </View>
+
+        {/* Avatar Card */}
         <View className="px-4 mb-4">
           <View className="bg-white rounded-2xl p-4 shadow-sm flex-row items-center gap-4">
             <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">

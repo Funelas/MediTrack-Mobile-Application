@@ -286,15 +286,15 @@ export default function CheckupScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      {/* Header */}
-      <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
-        <Text className="text-white text-2xl font-bold">Checkup Reports</Text>
-        <Text className="text-teal-100 text-sm mt-1">
-          View and track your health results over time.
-        </Text>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
+          <Text className="text-white text-2xl font-bold">Checkup Reports</Text>
+          <Text className="text-teal-100 text-sm mt-1">
+            View and track your health results over time.
+          </Text>
+        </View>
+
         <View className="px-4 mt-4">
 
           {/* Category Dropdown */}

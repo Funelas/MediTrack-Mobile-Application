@@ -58,15 +58,15 @@ export default function MedicineScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" style={{position: 'relative'}}>
-      {/* Header */}
-      <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
-        <Text className="text-white text-2xl font-bold">My Medicines</Text>
-        <Text className="text-teal-100 text-sm mt-1">
-          Manage and track all of your medicines.
-        </Text>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
+          <Text className="text-white text-2xl font-bold">My Medicines</Text>
+          <Text className="text-teal-100 text-sm mt-1">
+            Manage and track all of your medicines.
+          </Text>
+        </View>
+
         <View className="px-4 mt-4">
 
           {/* Search + Filters */}

@@ -319,14 +319,15 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" style={{position: 'relative'}}>
-      <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
-        <Text className="text-white text-2xl font-bold">Schedule</Text>
-        <Text className="text-teal-100 text-sm mt-1">
-          Manage your medications, appointments and health tasks.
-        </Text>
-      </View>
-
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
+          <Text className="text-white text-2xl font-bold">Schedule</Text>
+          <Text className="text-teal-100 text-sm mt-1">
+            Manage your medications, appointments and health tasks.
+          </Text>
+        </View>
+
         <View className="px-4 mt-4">
 
           {/* Tab toggle + filters */}
