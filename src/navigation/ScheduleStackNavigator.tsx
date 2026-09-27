@@ -7,8 +7,15 @@ import MedicineDetailScreen from '../screens/MedicineDetailScreen';
 
 export type ScheduleStackParamList = {
   ScheduleMain: undefined;
-  AddSchedule: {type: 'reminder' | 'appointment'};
-  ScheduleDetail: {id: string; type: 'reminder' | 'appointment' | 'med'};
+  AddSchedule: {type: 'reminder' | 'appointment'; id?: string};
+  ScheduleDetail: {
+    id: string;
+    type: 'reminder' | 'appointment' | 'med';
+    /** ISO date string of the specific occurrence tapped (e.g. "2026-09-27") */
+    occurrenceDate?: string;
+    /** HH:MM time of the occurrence */
+    occurrenceTime?: string;
+  };
   EditSchedule: {id: string; type: 'reminder' | 'appointment'};
   MedicineDetail: {id: string};
 };

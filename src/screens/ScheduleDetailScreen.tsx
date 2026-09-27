@@ -1,6 +1,9 @@
-import React, {useEffect, useState} from 'react';
-import {View, Text, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator} from 'react-native';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
+import React, {useState, useCallback} from 'react';
+import {
+  View, Text, SafeAreaView, TouchableOpacity,
+  ScrollView, ActivityIndicator, Alert,
+} from 'react-native';
+import {useNavigation, useRoute, RouteProp, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {ScheduleStackParamList} from '../navigation/ScheduleStackNavigator';
 import Bell from '../assets/svg_icons/bell.svg';
@@ -8,6 +11,12 @@ import Calendar from '../assets/svg_icons/calendar.svg';
 import Clock from '../assets/svg_icons/clock.svg';
 import {database} from '../database';
 import Task from '../database/models/Task';
+import DeleteScheduleModal, {DeleteScope} from '../components/DeleteScheduleModal';
+import {
+  deleteThisOccurrence,
+  deleteThisAndFollowing,
+  deleteAllEvents,
+} from '../database/services';
 
 type Nav = NativeStackNavigationProp<ScheduleStackParamList>;
 type Route = RouteProp<ScheduleStackParamList, 'ScheduleDetail'>;
@@ -26,7 +35,6 @@ function DetailRow({icon, label, value}: {icon: React.ReactNode; label: string; 
   );
 }
 
-/** "HH:MM" → "9:00 AM" */
 function formatTimeStr(timeStr: string): string {
   const [h, m] = timeStr.split(':').map(Number);
   const d = new Date();
@@ -34,7 +42,6 @@ function formatTimeStr(timeStr: string): string {
   return d.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true});
 }
 
-/** Convert RRULE string to a human-readable label */
 function rruleToLabel(rrule: string): string {
   if (!rrule) return '—';
   const parts: Record<string, string> = {};
@@ -50,15 +57,10 @@ function rruleToLabel(rrule: string): string {
   let base = '';
   if (parts['BYDAY']) {
     base = parts['BYDAY'].split(',').map(d => BYDAY_MAP[d.trim()] ?? d).join(', ');
-  } else if (freq === 'DAILY') {
-    base = 'Every Day';
-  } else if (freq === 'WEEKLY') {
-    base = 'Every Week';
-  } else if (freq === 'MONTHLY') {
-    base = 'Every Month';
-  } else {
-    base = rrule;
-  }
+  } else if (freq === 'DAILY') { base = 'Every Day';
+  } else if (freq === 'WEEKLY') { base = 'Every Week';
+  } else if (freq === 'MONTHLY') { base = 'Every Month';
+  } else { base = rrule; }
   if (parts['UNTIL']) {
     const y = parseInt(parts['UNTIL'].slice(0, 4));
     const mo = parseInt(parts['UNTIL'].slice(4, 6)) - 1;
@@ -70,20 +72,65 @@ function rruleToLabel(rrule: string): string {
   return base;
 }
 
+function isRepeatingTask(rrule: string): boolean {
+  if (!rrule) return false;
+  const parts: Record<string, string> = {};
+  rrule.split(';').forEach(seg => {
+    const [k, v] = seg.split('=');
+    if (k && v !== undefined) parts[k.trim()] = v.trim();
+  });
+  return parts['COUNT'] !== '1';
+}
+
 export default function ScheduleDetailScreen() {
   const navigation = useNavigation<Nav>();
   const {params} = useRoute<Route>();
   const [item, setItem] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  useEffect(() => {
-    database
-      .get<Task>('tasks')
-      .find(params.id)
-      .then(setItem)
-      .catch(() => setItem(null))
-      .finally(() => setLoading(false));
-  }, [params.id]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      database
+        .get<Task>('tasks')
+        .find(params.id)
+        .then(setItem)
+        .catch(() => setItem(null))
+        .finally(() => setLoading(false));
+    }, [params.id]),
+  );
+
+  const handleDelete = async (scope: DeleteScope) => {
+    if (!item) return;
+    setShowDeleteModal(false);
+
+    try {
+      // Resolve the occurrence date — use the passed param if available,
+      // otherwise fall back to the task's startDate
+      const occDate = params.occurrenceDate
+        ? new Date(params.occurrenceDate)
+        : new Date(item.startDate);
+      const occTime = params.occurrenceTime ?? item.time;
+
+      switch (scope) {
+        case 'this':
+          await deleteThisOccurrence(item, occDate, occTime);
+          navigation.goBack();
+          break;
+        case 'this_and_following':
+          await deleteThisAndFollowing(item, occDate);
+          navigation.goBack();
+          break;
+        case 'all':
+          await deleteAllEvents(item);
+          navigation.goBack();
+          break;
+      }
+    } catch {
+      Alert.alert('Error', 'Could not delete the event. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -110,10 +157,9 @@ export default function ScheduleDetailScreen() {
   const accentColor = isAppointment ? '#3B82F6' : '#F97316';
   const headerTitle = isAppointment ? 'Appointment Details' : 'Reminder Details';
   const formattedDate = new Date(item.startDate).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
+    month: 'long', day: 'numeric', year: 'numeric',
   });
+  const repeating = isRepeatingTask(item.rrule);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -123,16 +169,25 @@ export default function ScheduleDetailScreen() {
           <Text className="text-gray-600 text-xl">‹</Text>
         </TouchableOpacity>
         <Text className="text-gray-800 text-base font-semibold">{headerTitle}</Text>
-        <TouchableOpacity
-          onPress={() =>
-            navigation.navigate('EditSchedule', {
-              id: item.id,
-              type: item.type as 'reminder' | 'appointment',
-            })
-          }
-          className="p-2">
-          <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
-        </TouchableOpacity>
+        <View className="flex-row items-center gap-1">
+          {/* Delete */}
+          <TouchableOpacity
+            onPress={() => setShowDeleteModal(true)}
+            className="p-2">
+            <Text className="text-red-500 text-sm font-semibold">Delete</Text>
+          </TouchableOpacity>
+          {/* Edit */}
+          <TouchableOpacity
+            onPress={() =>
+              navigation.navigate('EditSchedule', {
+                id: item.id,
+                type: item.type as 'reminder' | 'appointment',
+              })
+            }
+            className="p-2">
+            <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
@@ -149,9 +204,9 @@ export default function ScheduleDetailScreen() {
             </View>
             <View className="flex-1">
               <Text className="text-gray-800 text-lg font-bold">{item.title}</Text>
-              {isAppointment && item.doctorClinic ? (
-                <Text className="text-gray-400 text-sm mt-0.5">{item.doctorClinic}</Text>
-              ) : null}
+              {isAppointment && item.doctorClinic
+                ? <Text className="text-gray-400 text-sm mt-0.5">{item.doctorClinic}</Text>
+                : null}
             </View>
           </View>
 
@@ -171,13 +226,13 @@ export default function ScheduleDetailScreen() {
                 label="Time"
                 value={formatTimeStr(item.time)}
               />
-              {isAppointment && item.location ? (
-                <DetailRow
-                  icon={<Bell width={18} height={18} color="#6B7280" />}
-                  label="Location"
-                  value={item.location}
-                />
-              ) : null}
+              {isAppointment && item.location
+                ? <DetailRow
+                    icon={<Bell width={18} height={18} color="#6B7280" />}
+                    label="Location"
+                    value={item.location}
+                  />
+                : null}
               <DetailRow
                 icon={<Clock width={18} height={18} color="#6B7280" />}
                 label="Repeat"
@@ -198,9 +253,7 @@ export default function ScheduleDetailScreen() {
           {/* Notes */}
           {item.notes ? (
             <View>
-              <Text className="text-sm font-bold mb-2" style={{color: accentColor}}>
-                Notes
-              </Text>
+              <Text className="text-sm font-bold mb-2" style={{color: accentColor}}>Notes</Text>
               <View className="bg-white rounded-2xl px-4 py-4">
                 <Text className="text-gray-600 text-sm">{item.notes}</Text>
               </View>
@@ -209,6 +262,15 @@ export default function ScheduleDetailScreen() {
 
         </View>
       </ScrollView>
+
+      {/* Delete modal */}
+      <DeleteScheduleModal
+        visible={showDeleteModal}
+        isRepeating={repeating}
+        title={item.title}
+        onDelete={handleDelete}
+        onClose={() => setShowDeleteModal(false)}
+      />
     </SafeAreaView>
   );
 }

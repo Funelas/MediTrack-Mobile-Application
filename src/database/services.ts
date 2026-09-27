@@ -114,6 +114,7 @@ function midnight(d: Date): Date {
 export function expandRRule(startDate: Date, rrule: string, rangeStart: Date, rangeEnd: Date): Date[] {
   const rule = parseRRule(rrule);
   const freq = rule['FREQ'] ?? 'DAILY';
+  const interval = rule['INTERVAL'] ? parseInt(rule['INTERVAL']) : 1;
   const count = rule['COUNT'] ? parseInt(rule['COUNT']) : undefined;
   const until = rule['UNTIL']
     ? new Date(
@@ -146,14 +147,16 @@ export function expandRRule(startDate: Date, rrule: string, rangeStart: Date, ra
     // Check if this cursor date is a valid occurrence day
     let isValid = false;
     if (byDay) {
-      isValid = byDay.includes(cursor.getDay());
+      // Weekly with specific days — also respect INTERVAL (every N weeks)
+      const diffDays = Math.round((cursor.getTime() - anchor.getTime()) / 86400000);
+      const weeksDiff = Math.floor(diffDays / 7);
+      isValid = byDay.includes(cursor.getDay()) && weeksDiff % interval === 0;
     } else {
-      // For DAILY / MONTHLY we check cadence from anchor
+      const diffDays = Math.round((cursor.getTime() - anchor.getTime()) / 86400000);
       if (freq === 'DAILY') {
-        isValid = true;
+        isValid = diffDays % interval === 0;
       } else if (freq === 'WEEKLY') {
-        const diffDays = Math.round((cursor.getTime() - anchor.getTime()) / 86400000);
-        isValid = diffDays % 7 === 0;
+        isValid = diffDays % (7 * interval) === 0;
       } else if (freq === 'MONTHLY') {
         isValid = cursor.getDate() === anchor.getDate();
       }
@@ -170,7 +173,7 @@ export function expandRRule(startDate: Date, rrule: string, rangeStart: Date, ra
     // Advance cursor by the right step size
     if (freq === 'MONTHLY') {
       cursor = new Date(cursor);
-      cursor.setMonth(cursor.getMonth() + 1);
+      cursor.setMonth(cursor.getMonth() + 1 * interval);
     } else {
       cursor = new Date(cursor.getTime() + 86400000); // +1 day
     }
@@ -431,6 +434,58 @@ export const updateTask = async (task: Task, data: Partial<{
 
 export const deleteTask = async (task: Task) => {
   return database.write(async () => {
+    return task.markAsDeleted();
+  });
+};
+
+/**
+ * Cancel just this one occurrence — writes is_cancelled: true to the
+ * occurrences table. The rule stays intact; all other occurrences are unaffected.
+ */
+export const deleteThisOccurrence = async (
+  task: Task,
+  scheduledDate: Date,
+  scheduledTime: string,
+) => {
+  return upsertOccurrence(task.id, 'task', scheduledDate, scheduledTime, {
+    isCancelled: true,
+  });
+};
+
+/**
+ * Cancel this and all following occurrences — sets UNTIL on the rrule to the
+ * day *before* this occurrence so the rule stops generating from this date onward.
+ * Past occurrences and their done/cancelled state are untouched.
+ */
+export const deleteThisAndFollowing = async (
+  task: Task,
+  scheduledDate: Date,
+) => {
+  // Set UNTIL to the day before this occurrence
+  const dayBefore = new Date(scheduledDate);
+  dayBefore.setDate(dayBefore.getDate() - 1);
+  const until = `${dayBefore.getFullYear()}${String(dayBefore.getMonth() + 1).padStart(2, '0')}${String(dayBefore.getDate()).padStart(2, '0')}`;
+
+  // Strip any existing UNTIL or COUNT from the rrule, then append new UNTIL
+  const baseRrule = task.rrule
+    .split(';')
+    .filter(seg => !seg.startsWith('UNTIL=') && !seg.startsWith('COUNT='))
+    .join(';');
+  const newRrule = `${baseRrule};UNTIL=${until}`;
+
+  return updateTask(task, {rrule: newRrule, endsType: 'on_date'});
+};
+
+/**
+ * Delete the task entirely — removes the task row and all its occurrence rows.
+ */
+export const deleteAllEvents = async (task: Task) => {
+  const taskOccurrences = await occurrences
+    .query(Q.where('reference_id', task.id))
+    .fetch();
+
+  return database.write(async () => {
+    await Promise.all(taskOccurrences.map(occ => occ.markAsDeleted()));
     return task.markAsDeleted();
   });
 };

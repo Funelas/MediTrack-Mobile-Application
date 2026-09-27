@@ -278,7 +278,12 @@ export default function ScheduleScreen() {
         <TouchableOpacity
           onPress={() => {
             if (item.referenceType === 'task') {
-              navigation.navigate('ScheduleDetail', {id: item.referenceId, type: item.type as any});
+              navigation.navigate('ScheduleDetail', {
+                id: item.referenceId,
+                type: item.type as any,
+                occurrenceDate: item.date.toISOString(),
+                occurrenceTime: item.time,
+              });
             } else if (item.referenceType === 'med') {
               navigation.navigate('MedicineDetail', {id: item.referenceId});
             }
