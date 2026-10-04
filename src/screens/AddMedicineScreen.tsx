@@ -179,10 +179,10 @@ function Step1({data, setData, errors}: {data: any; setData: (d: any) => void; e
       <TextInput
         value={data.name}
         onChangeText={v => {
-          // allow letters, spaces, hyphens and dots only (medicine names like "Co-Amoxiclav" or "Vit. C")
-          const sanitised = v.replace(/[^a-zA-Z\s\-.]/g, '');
-          setData({...data, name: sanitised});
+          if (v.length === 1 && !/^[a-zA-Z]/.test(v)) return;
+          setData({...data, name: v});
         }}
+
         placeholder="e.g Metformin"
         placeholderTextColor="#9ca3af"
         className={`border rounded-xl px-4 py-3 text-gray-800 text-sm mb-1 ${errors.name ? 'border-red-400' : 'border-gray-200'}`}
