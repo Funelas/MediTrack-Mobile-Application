@@ -17,7 +17,7 @@ import Clock from '../assets/svg_icons/clock.svg';
 import Check from '../assets/svg_icons/check.svg';
 import CircularProgress from '../components/CircularProgress';
 import ScheduleItemCard from '../components/ScheduleItemCard';
-import {useFocusEffect} from '@react-navigation/native';
+import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {getItemsForDay, upsertOccurrence, VirtualItem} from '../database/services';
 
 const healthSummary = {
@@ -79,7 +79,7 @@ function NextUpCard({
   const {width} = useWindowDimensions();
   const scale = width / 390;
   const s = (n: number) => Math.round(n * scale);
-
+  const navigation = useNavigation<any>();
   const barAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -219,11 +219,26 @@ function NextUpCard({
           className="rounded-xl py-2.5 items-center"
           style={{backgroundColor: accentColor}}
           activeOpacity={0.8}
-          onPress={() => item.type !== 'appointment' && onMarkDone(item)}>
+          onPress={() => {
+            if (item.type === 'med') {
+              navigation.navigate('Meds', {
+                screen: 'MedicineDetail',
+                params: {id: item.referenceId},
+              });
+            } else if (item.type === 'appointment' || item.type === 'reminder') {
+              navigation.navigate('Schedule', {
+                screen: 'ScheduleDetail',
+                params: {id: item.referenceId, type: item.type},
+              });
+            } else {
+              onMarkDone(item);
+            }
+          }}>
           <Text className="text-white text-sm font-bold">
             {item.type === 'appointment' ? 'View Details' : 'Mark as Done'}
           </Text>
         </TouchableOpacity>
+
 
         {/* siblings indicator */}
         {siblings.length > 0 && (

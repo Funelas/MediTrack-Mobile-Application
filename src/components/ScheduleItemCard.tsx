@@ -1,5 +1,6 @@
 import React from 'react';
 import {View, Text, TouchableOpacity} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import Bell from '../assets/svg_icons/bell.svg';
 import Arrow from '../assets/svg_icons/arrow.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
@@ -36,8 +37,26 @@ export default function ScheduleItemCard({
   onMarkDone,
   formatTimeStr,
 }: Props) {
+  const navigation = useNavigation<any>();
+
+  const handlePress = () => {
+    if (item.type === 'med') {
+      navigation.navigate('Meds', {
+        screen: 'MedicineDetail',
+        params: {id: item.referenceId},
+      });
+    } else {
+      navigation.navigate('Schedule', {
+        screen: 'ScheduleDetail',
+        params: {id: item.referenceId, type: item.type},
+      });
+    }
+  };
+
   return (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={handlePress}
       className={`border rounded-xl border-1 my-1 p-1 ${
         item.isDone
           ? 'border-[#C2DDD8] bg-[#DBE7E5]'
@@ -48,7 +67,10 @@ export default function ScheduleItemCard({
       <View className="flex-row items-center py-3 gap-3">
         {/* Check button */}
         <TouchableOpacity
-          onPress={() => onMarkDone(item)}
+          onPress={e => {
+            e.stopPropagation?.();
+            onMarkDone(item);
+          }}
           className={`w-7 h-7 border rounded-full flex justify-center items-center ${
             item.isDone
               ? 'border-[#139880] bg-[#C2DDD8]'
@@ -87,6 +109,6 @@ export default function ScheduleItemCard({
       </View>
 
       {index < total - 1 && <View className="h-px bg-gray-100" />}
-    </View>
+    </TouchableOpacity>
   );
 }
