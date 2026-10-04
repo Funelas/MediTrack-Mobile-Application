@@ -225,19 +225,17 @@ function NextUpCard({
                 screen: 'MedicineDetail',
                 params: {id: item.referenceId},
               });
-            } else if (item.type === 'appointment' || item.type === 'reminder') {
+            } else {
               navigation.navigate('Schedule', {
                 screen: 'ScheduleDetail',
                 params: {id: item.referenceId, type: item.type},
               });
-            } else {
-              onMarkDone(item);
             }
           }}>
-          <Text className="text-white text-sm font-bold">
-            {item.type === 'appointment' ? 'View Details' : 'Mark as Done'}
-          </Text>
+          <Text className="text-white text-sm font-bold">View Details</Text>
         </TouchableOpacity>
+
+
 
 
         {/* siblings indicator */}

@@ -10,7 +10,8 @@ import Stock from '../assets/svg_icons/stock.svg';
 import QR from '../assets/svg_icons/qr.svg';
 import {database} from '../database';
 import MedicineModel from '../database/models/Medicine';
-
+import {upsertOccurrence} from '../database/services';
+import Check from '../assets/svg_icons/check.svg';
 type Nav = NativeStackNavigationProp<MedsStackParamList>;
 type Route = RouteProp<MedsStackParamList, 'MedicineDetail'>;
 
@@ -37,17 +38,29 @@ export default function MedicineDetailScreen() {
   const params = route.params;
   const [med, setMed] = useState<MedicineModel | null>(null);
   const [loading, setLoading] = useState(true);
-  const [taken, setTaken] = useState<Record<number, boolean>>({});
+  const [taken, setTaken] = useState<Record<string, boolean>>({});
 
+  // Load today's occurrence state on focus
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
       database.get<MedicineModel>('medicines').find(params.id)
-        .then(result => { setMed(result); })
+        .then(async result => {
+          setMed(result);
+          // Load today's done state from occurrences
+          const {getItemsForDay} = require('../database/services');
+          const todayItems = await getItemsForDay(new Date());
+          const initialTaken: Record<string, boolean> = {};
+          todayItems
+            .filter((i: any) => i.referenceId === params.id)
+            .forEach((i: any) => { initialTaken[i.time] = i.isDone; });
+          setTaken(initialTaken);
+        })
         .catch(() => setMed(null))
         .finally(() => setLoading(false));
     }, [params.id])
   );
+
 
   if (loading) {
     return (
@@ -122,7 +135,7 @@ export default function MedicineDetailScreen() {
         <View className="px-4 pt-4 pb-8 gap-4">
 
           {/* Medicine Identity Card */}
-          <View className="bg-white rounded-2xl p-4 flex-row items-center gap-4">
+          <View className="bg-white rounded-2xl p-4 flex-row items-center gap-x-4">
             <View className="w-16 h-16 rounded-2xl items-center justify-center" style={{backgroundColor: iconBg}}>
               <Pills width={32} height={32} color={med.color} />
             </View>
@@ -136,32 +149,50 @@ export default function MedicineDetailScreen() {
           {/* Today's Intake */}
           <View>
             <Text className="text-teal-500 text-sm font-bold mb-2">Today's Intake</Text>
-            <View className="bg-white rounded-2xl p-4 gap-3">
+            <View className="bg-white rounded-2xl p-4">
               {intakeTimes.length === 0
                 ? <Text className="text-gray-400 text-sm">No intake times set.</Text>
                 : intakeTimes.map((t, i) => (
-                  <View key={i} className="flex-row items-center justify-between">
-                    <View className="flex-row items-center gap-3">
-                      <TouchableOpacity
-                        onPress={() => setTaken(prev => ({...prev, [i]: !prev[i]}))}
-                        className="w-10 h-10 rounded-full items-center justify-center"
-                        style={{backgroundColor: taken[i] ? '#14B8A6' : '#F3F4F6'}}>
-                        <Text className="text-white text-base font-bold">✓</Text>
-                      </TouchableOpacity>
-                      <View>
-                        <Text className="text-gray-800 text-sm font-semibold">
-                          {taken[i] ? 'Taken' : 'Not yet taken'}
-                        </Text>
-                        <Text className="text-gray-400 text-xs mt-0.5">Scheduled at {t}</Text>
+                    <View key={i} className={`flex-row items-center justify-between py-3 ${i < intakeTimes.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                      <View className="flex-row items-center gap-3">
+                        <View className={`w-10 h-10 rounded-full items-center justify-center`}
+                          style={{backgroundColor: taken[t] ? '#CCFBF1' : '#F3F4F6'}}>
+                          <Clock width={18} height={18} color={taken[t] ? '#14B8A6' : '#9ca3af'} />
+                        </View>
+                        <View>
+                          <Text className="text-gray-800 text-sm font-semibold">
+                            {taken[t] ? 'Taken' : 'Not yet taken'}
+                          </Text>
+                          <Text className="text-gray-400 text-xs mt-0.5">Scheduled at {t}</Text>
+                        </View>
                       </View>
+
+                      {/* Action button */}
+                      {med.trackingMethod === 'qr' ? (
+                        <TouchableOpacity
+                          className="flex-row items-center gap-1.5 bg-purple-50 px-3 py-2 rounded-xl"
+                          onPress={() => {/* camera placeholder */}}>
+                          <QR width={16} height={16} color="#6366F1" />
+                          <Text className="text-purple-500 text-xs font-semibold">Scan</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          onPress={async () => {
+                            if (!med) return;
+                            const newVal = !taken[t];
+                            setTaken(prev => ({...prev, [t]: newVal}));
+                            await upsertOccurrence(med.id, 'med', new Date(), t, {isDone: newVal});
+                          }}
+                          className="flex-row items-center gap-1.5 px-3 py-2 rounded-xl"
+                          style={{backgroundColor: taken[t] ? '#CCFBF1' : '#F0FDFA'}}>
+                          <Check width={16} height={16} color={taken[t] ? '#14B8A6' : '#14B8A6'} />
+                          <Text className="text-xs font-semibold" style={{color: '#14B8A6'}}>
+                            {taken[t] ? 'Taken' : 'Mark Done'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
-                    <View className="items-end gap-1">
-                      <Text className="text-gray-400 text-xs">Tracking</Text>
-                      {med.trackingMethod === 'qr'
-                        ? <QR width={22} height={22} color="#6366F1" />
-                        : <Text className="text-gray-500 text-xs font-medium">Tap to Log</Text>}
-                    </View>
-                  </View>
+
                 ))
               }
             </View>
