@@ -16,6 +16,7 @@ import Heart from '../assets/svg_icons/heart.svg';
 import Clock from '../assets/svg_icons/clock.svg';
 import Check from '../assets/svg_icons/check.svg';
 import CircularProgress from '../components/CircularProgress';
+import ScheduleItemCard from '../components/ScheduleItemCard';
 import {useFocusEffect} from '@react-navigation/native';
 import {getItemsForDay, upsertOccurrence, VirtualItem} from '../database/services';
 
@@ -371,7 +372,6 @@ export default function HomeScreen() {
             )}
 
             {[
-              // upcoming (not done) sorted by time ascending
               ...todayItems
                 .filter(i => !i.isDone)
                 .sort((a, b) => {
@@ -379,7 +379,6 @@ export default function HomeScreen() {
                   const [bh, bm] = b.time.split(':').map(Number);
                   return ah * 60 + am - (bh * 60 + bm);
                 }),
-              // done items after, sorted by time ascending
               ...todayItems
                 .filter(i => i.isDone)
                 .sort((a, b) => {
@@ -387,48 +386,19 @@ export default function HomeScreen() {
                   const [bh, bm] = b.time.split(':').map(Number);
                   return ah * 60 + am - (bh * 60 + bm);
                 }),
-            ].map((item, index, arr) => {
-              const overdue = isItemOverdue(item);
-              return (
-              <View
+            ].map((item, index, arr) => (
+              <ScheduleItemCard
                 key={item.key}
-                className={`border rounded-xl border-1 my-1 p-1 ${
-                  item.isDone
-                    ? 'border-[#C2DDD8] bg-[#DBE7E5]'
-                    : overdue
-                    ? 'border-red-200 bg-red-50'
-                    : 'border-gray-200 bg-white'
-                }`}>
-                <View className="flex-row items-center py-3 gap-3">
-                  <TouchableOpacity
-                    onPress={() => handleMarkDone(item)}
-                    className={`w-7 h-7 border border-1 rounded-full flex justify-center items-center ${
-                      item.isDone
-                        ? 'border-[#139880] bg-[#C2DDD8]'
-                        : overdue
-                        ? 'border-red-400 bg-transparent'
-                        : 'border-[#787878] bg-transparent'
-                    }`}>
-                    {item.isDone ? <Check width={iconSm} height={iconSm} color="#139880" /> : null}
-                  </TouchableOpacity>
-                  {getItemIcon(item, iconMd)}
-                  <Text className={`text-sm w-16 ${overdue && !item.isDone ? 'text-red-400' : 'text-gray-400'}`}>
-                    {formatTimeStr(item.time)}
-                  </Text>
-                  <View className="flex-1">
-                    <Text className="text-gray-800 text-sm font-medium">{item.title}</Text>
-                    {overdue && !item.isDone && (
-                      <Text className="text-red-400 text-xs mt-0.5">Missed</Text>
-                    )}
-                  </View>
-                  <View style={{transform: [{rotate: '270deg'}]}}>
-                    <Arrow width={20} height={20} />
-                  </View>
-                </View>
-                {index < arr.length - 1 && <View className="h-px bg-gray-100" />}
-              </View>
-              );
-            })}
+                item={item}
+                index={index}
+                total={arr.length}
+                iconSm={iconSm}
+                iconMd={iconMd}
+                isOverdue={isItemOverdue(item)}
+                onMarkDone={handleMarkDone}
+                formatTimeStr={formatTimeStr}
+              />
+            ))}
           </View>
 
           {/* Health Summary Card */}

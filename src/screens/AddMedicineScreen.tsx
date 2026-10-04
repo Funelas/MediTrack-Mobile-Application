@@ -413,7 +413,7 @@ function Step2({data, setData}: {data: any; setData: (d: any) => void}) {
               </TouchableOpacity>
             )}
             {opt === 'After Occurrences' && data.endsType === 'After Occurrences' && (
-              <View className="mx-4 mb-3 flex-row items-center gap-3">
+              <View className="mx-4 mb-3 flex-row items-center gap-3 px-4">
                 <TextInput
                   value={data.occurrences}
                   onChangeText={v => setData({...data, occurrences: v.replace(/[^0-9]/g, '')})}
