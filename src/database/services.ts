@@ -560,13 +560,51 @@ export const addMedicine = async (data: {
   });
 };
 
-export const updateMedicine = async (medicine: Medicine, data: Partial<Medicine>) => {
+export const updateMedicine = async (medicine: Medicine, data: {
+  name: string;
+  genericName?: string;
+  manufacturer?: string;
+  color: string;
+  form: string;
+  dosage: string;
+  intakeTimes: string[];
+  startDate: Date;
+  rrule: string;
+  endsType: string;
+  endDate?: number;
+  occurrencesCount?: number;
+  reminderEnabled: boolean;
+  currentStock: number;
+  maxStock: number;
+  lowStockAlert: boolean;
+  lowStockThreshold: number;
+  trackingMethod: string;
+}) => {
   return database.write(async () => {
     return medicine.update(med => {
-      Object.assign(med, data);
+      med.name = data.name;
+      med.genericName = data.genericName ?? '';
+      med.manufacturer = data.manufacturer ?? '';
+      med.color = data.color;
+      med.form = data.form;
+      med.dosage = data.dosage;
+      med.intakeTimes = JSON.stringify(data.intakeTimes);
+      (med as any)._raw.start_date = data.startDate.getTime();
+      med.rrule = data.rrule;
+      med.endsType = data.endsType;
+      med.endDate = data.endDate ?? 0;
+      med.occurrencesCount = data.occurrencesCount ?? 0;
+      med.reminderEnabled = data.reminderEnabled;
+      med.currentStock = data.currentStock;
+      med.maxStock = data.maxStock;
+      med.lowStockAlert = data.lowStockAlert;
+      med.lowStockThreshold = data.lowStockThreshold;
+      med.trackingMethod = data.trackingMethod;
+      (med as any)._raw.updated_at = Date.now();
     });
   });
 };
+
 
 export const deleteMedicine = async (medicine: Medicine) => {
   return database.write(async () => {

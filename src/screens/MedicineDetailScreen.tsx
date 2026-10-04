@@ -1,6 +1,6 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useCallback} from 'react';
 import {View, Text, SafeAreaView, TouchableOpacity, ScrollView, ActivityIndicator} from 'react-native';
-import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
+import {useNavigation, useRoute, RouteProp, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {MedsStackParamList} from '../navigation/MedsStackNavigator';
 import Pills from '../assets/svg_icons/pills.svg';
@@ -39,16 +39,15 @@ export default function MedicineDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [taken, setTaken] = useState<Record<number, boolean>>({});
 
-  useEffect(() => {
-    if (!params?.id) {
-      setLoading(false);
-      return;
-    }
-    database.get<MedicineModel>('medicines').find(params.id)
-      .then(result => { setMed(result); })
-      .catch(() => setMed(null))
-      .finally(() => setLoading(false));
-  }, [params?.id]);
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      database.get<MedicineModel>('medicines').find(params.id)
+        .then(result => { setMed(result); })
+        .catch(() => setMed(null))
+        .finally(() => setLoading(false));
+    }, [params.id])
+  );
 
   if (loading) {
     return (

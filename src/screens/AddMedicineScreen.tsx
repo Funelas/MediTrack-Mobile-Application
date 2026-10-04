@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -711,18 +711,26 @@ function Step4({data, setData}: {data: any; setData: (d: any) => void}) {
   );
 }
 import Download from '../assets/svg_icons/download.svg';
-import {addMedicine, buildRRule} from '../database/services';
 // Main Screen
+import {addMedicine, updateMedicine, buildRRule} from '../database/services';
+import {database} from '../database';
+import MedicineModel from '../database/models/Medicine';
+import {ActivityIndicator} from 'react-native';
+
 export default function AddMedicineScreen() {
   const navigation = useNavigation();
   const route = useRoute<any>();
-  const isEdit = !!route.params?.id;
+  const editId: string | undefined = route.params?.id;
+  const isEdit = !!editId;
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(isEdit);
+  const [editMedicine, setEditMedicine] = useState<MedicineModel | null>(null);
   const [step1Errors, setStep1Errors] = useState<Record<string, boolean>>({});
   const [step3Errors, setStep3Errors] = useState<Record<string, boolean>>({});
 
   const [step1, setStep1] = useState({
-    color: '#1F2937', name: '', genericName: '', manufacturer: '', dosage: '', dosageAmount: '', dosageUnit: '', form: 'Tablet',
+    color: '#1F2937', name: '', genericName: '', manufacturer: '',
+    dosage: '', dosageAmount: '', dosageUnit: '', form: 'Tablet',
   });
   const [step2, setStep2] = useState({
     startDate: new Date() as Date,
@@ -737,19 +745,104 @@ export default function AddMedicineScreen() {
   const [step3, setStep3] = useState({
     currentStock: '', maxStock: '', doseAmount: '', lowStockAlert: true, lowStockThreshold: '5',
   });
-  const [step4, setStep4] = useState({
-    trackingMethod: 'standard',
-  });
+  const [step4, setStep4] = useState({ trackingMethod: 'standard' });
+
+  // Prefill when editing
+  useEffect(() => {
+    if (!editId) return;
+    database.get<MedicineModel>('medicines').find(editId).then(med => {
+      setEditMedicine(med);
+
+      // Parse dosage back into amount + unit (e.g. "500 mg" → "500", "mg")
+      const dosageParts = med.dosage.trim().split(' ');
+      const dosageAmount = dosageParts[0] ?? '';
+      const dosageUnit = dosageParts.slice(1).join(' ');
+
+      setStep1({
+        color: med.color,
+        name: med.name,
+        genericName: med.genericName ?? '',
+        manufacturer: med.manufacturer ?? '',
+        dosage: med.dosage,
+        dosageAmount,
+        dosageUnit,
+        form: med.form,
+      });
+
+      // Parse rrule back to UI state
+      const rrule = med.rrule ?? '';
+      const hasByday = rrule.includes('BYDAY=');
+      const repeatType = hasByday ? 'Custom' : 'Every Day';
+      let repeatDays: string[] = [];
+      if (hasByday) {
+        const BYDAY_TO_UI: Record<string, string> = {
+          SU: 'Sun', MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat',
+        };
+        const bydayMatch = rrule.match(/BYDAY=([^;]+)/);
+        if (bydayMatch) {
+          repeatDays = bydayMatch[1].split(',').map(d => BYDAY_TO_UI[d] ?? d);
+        }
+      }
+
+      // Parse ends
+      let endsType: 'Never' | 'On Date' | 'After Occurrences' = 'Never';
+      let endDate: Date | null = null;
+      let occurrences = '';
+      if (med.endsType === 'on_date') {
+        endsType = 'On Date';
+        endDate = med.endDate ? new Date(med.endDate) : null;
+      } else if (med.endsType === 'after_occurrences') {
+        endsType = 'After Occurrences';
+        occurrences = med.occurrencesCount ? String(med.occurrencesCount) : '';
+      }
+
+      // Parse intake times back to Date objects
+      const parsedTimes = med.parsedIntakeTimes.map(t => {
+        const [h, m] = t.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+        return d;
+      });
+
+      setStep2({
+        startDate: new Date(med.startDate),
+        intakeTimes: parsedTimes.length > 0 ? parsedTimes : [new Date()],
+        repeatType,
+        repeatDays,
+        endsType,
+        endDate,
+        occurrences,
+        reminderEnabled: med.reminderEnabled,
+      });
+
+      setStep3({
+        currentStock: String(med.currentStock),
+        maxStock: String(med.maxStock),
+        doseAmount: '',
+        lowStockAlert: med.lowStockAlert,
+        lowStockThreshold: String(med.lowStockThreshold),
+      });
+
+      setStep4({ trackingMethod: med.trackingMethod });
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [editId]);
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator color="#14B8A6" />
+      </SafeAreaView>
+    );
+  }
 
   const handleSave = async () => {
     try {
       const rrule = buildRRule(
         step2.repeatType === 'Every Day' ? 'Every day' : 'Custom',
         step2.repeatDays,
-        step2.endsType === 'Never'
-          ? 'never'
-          : step2.endsType === 'On Date'
-          ? 'on_date'
+        step2.endsType === 'Never' ? 'never'
+          : step2.endsType === 'On Date' ? 'on_date'
           : 'after_occurrences',
         step2.occurrences ? parseInt(step2.occurrences) : undefined,
         step2.endDate ? step2.endDate.getTime() : undefined,
@@ -759,7 +852,7 @@ export default function AddMedicineScreen() {
         `${String(new Date(t).getHours()).padStart(2, '0')}:${String(new Date(t).getMinutes()).padStart(2, '0')}`,
       );
 
-      await addMedicine({
+      const payload = {
         name: step1.name.trim(),
         genericName: step1.genericName,
         manufacturer: step1.manufacturer,
@@ -769,10 +862,8 @@ export default function AddMedicineScreen() {
         intakeTimes: intakeTimeStrings,
         startDate: step2.startDate,
         rrule,
-        endsType: step2.endsType === 'Never'
-          ? 'never'
-          : step2.endsType === 'On Date'
-          ? 'on_date'
+        endsType: step2.endsType === 'Never' ? 'never'
+          : step2.endsType === 'On Date' ? 'on_date'
           : 'after_occurrences',
         endDate: step2.endDate ? step2.endDate.getTime() : undefined,
         occurrencesCount: step2.occurrences ? parseInt(step2.occurrences) : undefined,
@@ -782,13 +873,18 @@ export default function AddMedicineScreen() {
         lowStockAlert: step3.lowStockAlert,
         lowStockThreshold: parseFloat(step3.lowStockThreshold) || 0,
         trackingMethod: step4.trackingMethod,
-      });
+      };
+
+      if (isEdit && editMedicine) {
+        await updateMedicine(editMedicine, payload);
+      } else {
+        await addMedicine(payload);
+      }
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Failed to save medicine. Please try again.');
     }
   };
-
   const handleNext = () => {
     if (step === 1) {
       const errors: Record<string, boolean> = {};
