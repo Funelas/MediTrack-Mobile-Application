@@ -516,6 +516,7 @@ export default function ScheduleScreen() {
                               />
                             ))
                         }
+                        
                       </View>
                     </>
                   );
@@ -570,6 +571,7 @@ export default function ScheduleScreen() {
               )}
             </>
           )}
+        <View className="h-24" />
         </View>
       </ScrollView>
 
