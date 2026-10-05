@@ -9,6 +9,7 @@ import {ScheduleStackParamList} from '../navigation/ScheduleStackNavigator';
 import Bell from '../assets/svg_icons/bell.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Clock from '../assets/svg_icons/clock.svg';
+import Check from '../assets/svg_icons/check.svg';
 import {database} from '../database';
 import Task from '../database/models/Task';
 import DeleteScheduleModal, {DeleteScope} from '../components/DeleteScheduleModal';
@@ -17,6 +18,9 @@ import {
   deleteThisOccurrence,
   deleteThisAndFollowing,
   deleteAllEvents,
+  upsertOccurrence,
+  getItemsForDay,
+  VirtualItem,
 } from '../database/services';
 
 type Nav = NativeStackNavigationProp<ScheduleStackParamList>;
@@ -115,6 +119,7 @@ export default function ScheduleDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isDone, setIsDone] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -122,11 +127,24 @@ export default function ScheduleDetailScreen() {
       database
         .get<Task>('tasks')
         .find(params.id)
-        .then(setItem)
+        .then(async task => {
+          setItem(task);
+          // Load done state for this occurrence
+          const occDate = params.occurrenceDate
+            ? new Date(params.occurrenceDate)
+            : new Date(task.startDate);
+          const occTime = params.occurrenceTime ?? task.time;
+          const items = await getItemsForDay(occDate);
+          const match = items.find(
+            (i: VirtualItem) => i.referenceId === params.id && i.time === occTime,
+          );
+          setIsDone(match?.isDone ?? false);
+        })
         .catch(() => setItem(null))
         .finally(() => setLoading(false));
-    }, [params.id]),
+    }, [params.id, params.occurrenceDate, params.occurrenceTime]),
   );
+
 
   const handleDelete = async (scope: DeleteScope) => {
     if (!item) return;
@@ -170,7 +188,16 @@ export default function ScheduleDetailScreen() {
       occurrenceTime: params.occurrenceTime ?? item.time,
     });
   };
-
+  const handleToggleDone = async () => {
+    if (!item) return;
+    const newVal = !isDone;
+    setIsDone(newVal);
+    const occDate = params.occurrenceDate
+      ? new Date(params.occurrenceDate)
+      : new Date(item.startDate);
+    const occTime = params.occurrenceTime ?? item.time;
+    await upsertOccurrence(item.id, 'task', occDate, occTime, {isDone: newVal});
+  };
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-white items-center justify-center">
@@ -241,6 +268,39 @@ export default function ScheduleDetailScreen() {
               {isAppointment && item.doctorClinic
                 ? <Text className="text-gray-400 text-sm mt-0.5">{item.doctorClinic}</Text>
                 : null}
+            </View>
+          </View>
+          
+          {/* Status Card */}
+          <View>
+            <Text className="text-sm font-bold mb-2" style={{color: accentColor}}>
+              Status
+            </Text>
+            <View className="bg-white rounded-2xl p-4 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View
+                  className="w-10 h-10 rounded-full items-center justify-center"
+                  style={{backgroundColor: isDone ? '#CCFBF1' : '#F3F4F6'}}>
+                  <Check width={18} height={18} color={isDone ? '#14B8A6' : '#9ca3af'} />
+                </View>
+                <View>
+                  <Text className="text-gray-800 text-sm font-semibold">
+                    {isDone ? 'Completed' : 'Pending'}
+                  </Text>
+                  <Text className="text-gray-400 text-xs mt-0.5">
+                    {formatTimeStr(item.time)}
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={handleToggleDone}
+                className="flex-row items-center gap-x-1.5 px-3 py-2 rounded-xl"
+                style={{backgroundColor: isDone ? '#CCFBF1' : accentColor + '22'}}>
+                <Check width={14} height={14} color={isDone ? '#14B8A6' : accentColor} />
+                <Text className="text-xs font-semibold" style={{color: isDone ? '#14B8A6' : accentColor}}>
+                  {isDone ? 'Undo' : 'Mark Done'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 

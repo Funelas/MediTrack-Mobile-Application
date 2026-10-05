@@ -183,7 +183,7 @@ export default function MedicineDetailScreen() {
                             setTaken(prev => ({...prev, [t]: newVal}));
                             await upsertOccurrence(med.id, 'med', new Date(), t, {isDone: newVal});
                           }}
-                          className="flex-row items-center gap-1.5 px-3 py-2 rounded-xl"
+                          className="flex-row items-center gap-x-1.5 px-3 py-2 rounded-xl"
                           style={{backgroundColor: taken[t] ? '#CCFBF1' : '#F0FDFA'}}>
                           <Check width={16} height={16} color={taken[t] ? '#14B8A6' : '#14B8A6'} />
                           <Text className="text-xs font-semibold" style={{color: '#14B8A6'}}>
