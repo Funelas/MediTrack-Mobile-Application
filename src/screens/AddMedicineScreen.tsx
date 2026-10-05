@@ -14,13 +14,12 @@ import {
 import ColorPicker from 'react-native-wheel-color-picker';
 import {useNavigation, useRoute} from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import RadioSelectModal from '../components/RadioSelectModal';
-import CustomRepeatModal from '../components/CustomRepeatModal';
 import Clock from '../assets/svg_icons/clock.svg';
 import Bell from '../assets/svg_icons/bell.svg';
 import Stock from '../assets/svg_icons/stock.svg';
 import QR from '../assets/svg_icons/qr.svg';
 import Tap from '../assets/svg_icons/tap.svg';
+import {rescheduleAllNotifications} from '../notifications/notificationService';
 const MEDICINE_COLORS = [
   '#1F2937', '#3B82F6', '#8B5CF6', '#F97316',
   '#14B8A6', '#EAB308', '#EF4444', '#EC4899',
@@ -918,6 +917,7 @@ export default function AddMedicineScreen() {
       } else {
         await addMedicine(payload);
       }
+      await rescheduleAllNotifications();
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Failed to save medicine. Please try again.');

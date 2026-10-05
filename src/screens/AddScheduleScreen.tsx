@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {addTask, updateTask, upsertOccurrence, deleteThisAndFollowing} from '../database/services';
+import {rescheduleAllNotifications} from '../notifications/notificationService';
 import {database} from '../database';
 import Task from '../database/models/Task';
 import {ScheduleStackParamList} from '../navigation/ScheduleStackNavigator';
@@ -259,6 +260,7 @@ export default function AddScheduleScreen() {
             notesOverride: notes !== existingTask.notes ? notes : '',
           },
         );
+        await rescheduleAllNotifications();
         navigation.goBack();
         return;
       }
@@ -283,6 +285,7 @@ export default function AddScheduleScreen() {
           doctorClinic,
           location,
         });
+        await rescheduleAllNotifications();
         navigation.goBack();
         return;
       }
@@ -314,6 +317,7 @@ export default function AddScheduleScreen() {
           location,
         });
       }
+      await rescheduleAllNotifications();
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Failed to save. Please try again.');

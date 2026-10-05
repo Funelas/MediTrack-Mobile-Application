@@ -22,6 +22,7 @@ import {
   getItemsForDay,
   VirtualItem,
 } from '../database/services';
+import {rescheduleAllNotifications} from '../notifications/notificationService';
 
 type Nav = NativeStackNavigationProp<ScheduleStackParamList>;
 type Route = RouteProp<ScheduleStackParamList, 'ScheduleDetail'>;
@@ -158,6 +159,7 @@ export default function ScheduleDetailScreen() {
           onPress: async () => {
             try {
               await deleteAllEvents(item!);
+              await rescheduleAllNotifications();
               navigation.goBack();
             } catch {
               Alert.alert('Error', 'Could not delete the event. Please try again.');
