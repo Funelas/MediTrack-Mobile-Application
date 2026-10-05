@@ -255,6 +255,19 @@ function Step1({data, setData, errors}: {data: any; setData: (d: any) => void; e
     </ScrollView>
   );
 }
+  // Add this helper above Step2
+  function distributeTimes(baseTime: Date, count: number): Date[] {
+    const intervalHours = 24 / count;
+    return Array.from({length: count}, (_, i) => {
+      const d = new Date(baseTime);
+      d.setHours(
+        (new Date(baseTime).getHours() + Math.round(i * intervalHours)) % 24,
+        new Date(baseTime).getMinutes(),
+        0, 0,
+      );
+      return d;
+    });
+  }
 
 // Step 2
 const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -307,6 +320,31 @@ function Step2({data, setData}: {data: any; setData: (d: any) => void}) {
         </View>
         <Text className="text-gray-400 text-lg">›</Text>
       </TouchableOpacity>
+      {/* Times Per Day */}
+      <Text className="text-gray-700 text-sm font-medium mb-2">Times per Day</Text>
+      <View className="flex-row items-center border border-gray-200 rounded-xl overflow-hidden mb-4">
+        <TouchableOpacity
+          onPress={() => {
+            const newCount = Math.max(1, data.intakeTimes.length - 1);
+            setData({...data, intakeTimes: distributeTimes(data.intakeTimes[0], newCount)});
+          }}
+          className="px-5 py-3 bg-gray-50">
+          <Text className="text-gray-600 text-lg font-bold">−</Text>
+        </TouchableOpacity>
+        <View className="flex-1 items-center">
+          <Text className="text-gray-800 text-sm font-semibold">
+            {data.intakeTimes.length}x a day
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => {
+            const newCount = Math.min(8, data.intakeTimes.length + 1);
+            setData({...data, intakeTimes: distributeTimes(data.intakeTimes[0], newCount)});
+          }}
+          className="px-5 py-3 bg-gray-50">
+          <Text className="text-gray-600 text-lg font-bold">+</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Time Slots */}
       <Text className="text-gray-700 text-sm font-medium mb-2">Time(s) of Intake</Text>
