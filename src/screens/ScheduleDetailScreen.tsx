@@ -146,36 +146,28 @@ export default function ScheduleDetailScreen() {
   );
 
 
-  const handleDelete = async (scope: DeleteScope) => {
-    if (!item) return;
-    setShowDeleteModal(false);
-
-    try {
-      // Resolve the occurrence date — use the passed param if available,
-      // otherwise fall back to the task's startDate
-      const occDate = params.occurrenceDate
-        ? new Date(params.occurrenceDate)
-        : new Date(item.startDate);
-      const occTime = params.occurrenceTime ?? item.time;
-
-      switch (scope) {
-        case 'this':
-          await deleteThisOccurrence(item, occDate, occTime);
-          navigation.goBack();
-          break;
-        case 'this_and_following':
-          await deleteThisAndFollowing(item, occDate);
-          navigation.goBack();
-          break;
-        case 'all':
-          await deleteAllEvents(item);
-          navigation.goBack();
-          break;
-      }
-    } catch {
-      Alert.alert('Error', 'Could not delete the event. Please try again.');
-    }
+  const handleDelete = async () => {
+    Alert.alert(
+      'Delete Event',
+      `Are you sure you want to delete "${item?.title}"?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Confirm',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteAllEvents(item!);
+              navigation.goBack();
+            } catch {
+              Alert.alert('Error', 'Could not delete the event. Please try again.');
+            }
+          },
+        },
+      ],
+    );
   };
+
 
   const handleEditScope = (scope: EditScope) => {
     if (!item) return;
@@ -237,11 +229,10 @@ export default function ScheduleDetailScreen() {
         <Text className="text-gray-800 text-base font-semibold">{headerTitle}</Text>
         <View className="flex-row items-center gap-1">
           {/* Delete */}
-          <TouchableOpacity
-            onPress={() => setShowDeleteModal(true)}
-            className="p-2">
+          <TouchableOpacity onPress={handleDelete} className="p-2">
             <Text className="text-red-500 text-sm font-semibold">Delete</Text>
           </TouchableOpacity>
+
           {/* Edit */}
           <TouchableOpacity
             onPress={() => repeating ? setShowEditModal(true) : handleEditScope('all')}
