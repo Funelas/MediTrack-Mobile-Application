@@ -5,6 +5,7 @@ import Task from './models/Task';
 import Occurrence from './models/Occurrence';
 import CheckupReport from './models/CheckupReport';
 import TestResult from './models/TestResult';
+import Category from './models/Category';
 import {Q} from '@nozbe/watermelondb';
 
 const medicines = database.get<Medicine>('medicines');
@@ -13,6 +14,7 @@ const tasks = database.get<Task>('tasks');
 const occurrences = database.get<Occurrence>('occurrences');
 const checkupReports = database.get<CheckupReport>('checkup_reports');
 const testResults = database.get<TestResult>('test_results');
+const categories = database.get<Category>('categories');
 
 // ─── RRULE helpers ────────────────────────────────────────────────────────────
 
@@ -631,21 +633,26 @@ export const getIntakeLogsForMedicine = (medicineId: string) =>
 
 export const getCheckupReports = () => checkupReports.query().fetch();
 
+export const getCheckupReportsByCategory = (categoryId: string) =>
+  checkupReports.query(Q.where('category_id', categoryId)).fetch();
+
 export const addCheckupReport = async (data: {
-  category: string;
+  categoryId: string;
   checkupDate: Date;
   results: {
     testName: string;
     unit: string;
     normalRange: string;
     value: string;
-    status: 'normal' | 'high' | 'low';
+    status: string;
   }[];
 }) => {
   return database.write(async () => {
     const report = await checkupReports.create(r => {
-      r.category = data.category;
+      r.categoryId = data.categoryId;
       r.checkupDate = data.checkupDate;
+      (r as any)._raw.created_at = Date.now();
+      (r as any)._raw.updated_at = Date.now();
     });
     for (const result of data.results) {
       await testResults.create(t => {
@@ -655,8 +662,46 @@ export const addCheckupReport = async (data: {
         t.normalRange = result.normalRange;
         t.value = result.value;
         t.status = result.status;
+        (t as any)._raw.created_at = Date.now();
       });
     }
     return report;
+  });
+};
+
+export const deleteCheckupReport = async (report: CheckupReport) => {
+  // fetch and delete all test results for this report first
+  const results = await testResults.query(Q.where('report_id', report.id)).fetch();
+  return database.write(async () => {
+    await Promise.all(results.map(r => r.markAsDeleted()));
+    return report.markAsDeleted();
+  });
+};
+
+// ─── Categories (user-created) ────────────────────────────────────────────────
+
+export const getCategories = () => categories.query().fetch();
+
+export const addCategory = async (data: {
+  label: string;
+  icon: string;
+  color: string;
+  fields: string; // JSON-encoded CategoryField[]
+}) => {
+  return database.write(async () => {
+    return categories.create(c => {
+      c.label = data.label;
+      c.icon = data.icon;
+      c.color = data.color;
+      c.fields = data.fields;
+      (c as any)._raw.created_at = Date.now();
+      (c as any)._raw.updated_at = Date.now();
+    });
+  });
+};
+
+export const deleteCategory = async (category: Category) => {
+  return database.write(async () => {
+    return category.markAsDeleted();
   });
 };

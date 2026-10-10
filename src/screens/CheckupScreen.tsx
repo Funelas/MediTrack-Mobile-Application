@@ -1,253 +1,148 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Platform,
+  View, Text, ScrollView, TouchableOpacity,
+  SafeAreaView, Platform, ActivityIndicator,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import CategoryIconPickerModal, {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
+import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
 import FloatingAddButton from '../components/FloatingAddButton';
 import Calendar from '../assets/svg_icons/calendar.svg';
-// --- Types ---
-type ResultStatus = 'normal' | 'high' | 'low';
+import {
+  getCheckupReports, getCheckupReportsByCategory,
+  getCategories, deleteCheckupReport,
+} from '../database/services';
+import CheckupReport from '../database/models/CheckupReport';
+import TestResult from '../database/models/TestResult';
+import {database} from '../database';
+import {Q} from '@nozbe/watermelondb';
+import {BUILT_IN_CATEGORIES, getBuiltInCategory, computeStatus} from '../data/categoryDefinitions';
+import Category from '../database/models/Category';
 
-interface TestResult {
-  date: string;
-  dateObj: Date;
-  value: string;
-  status: ResultStatus;
-  referenceRange: string;
-}
+type Nav = NativeStackNavigationProp<ReportsStackParamList>;
+type ResultStatus = 'normal' | 'high' | 'low' | 'unknown';
 
-interface TestItem {
-  id: string;
-  name: string;
-  unit: string;
-  results: TestResult[];
-}
+// ─── helpers ─────────────────────────────────────────────────────────────────
 
-interface Category {
-  id: string;
-  label: string;
-  icon: CategoryIconKey;
-  tests: TestItem[];
-}
-
-// --- Placeholder Data ---
-const categories: Category[] = [
-  {
-    id: 'clinical',
-    label: 'Clinical Chemistry',
-    icon: 'flask',
-    tests: [
-      {
-        id: 'hba1c', name: 'HbA1C', unit: '%',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '5.4', status: 'normal', referenceRange: '4.0 - 5.6'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '6.1', status: 'high', referenceRange: '4.0 - 5.6'},
-        ],
-      },
-      {
-        id: 'fbs', name: 'FBS', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '184', status: 'high', referenceRange: '70 - 100'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '168', status: 'high', referenceRange: '70 - 100'},
-        ],
-      },
-      {
-        id: 'hdl', name: 'HDL', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '47', status: 'normal', referenceRange: '>40'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '48', status: 'normal', referenceRange: '>40'},
-        ],
-      },
-      {
-        id: 'ldl', name: 'LDL', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '112', status: 'high', referenceRange: '<100'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '98', status: 'normal', referenceRange: '<100'},
-        ],
-      },
-      {
-        id: 'vldl', name: 'VLDL', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '18', status: 'normal', referenceRange: '2 - 30'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '14', status: 'normal', referenceRange: '2 - 30'},
-        ],
-      },
-      {
-        id: 'triglycerides', name: 'Triglycerides', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '75', status: 'normal', referenceRange: '<150'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '74', status: 'normal', referenceRange: '<150'},
-        ],
-      },
-      {
-        id: 'bun', name: 'BUN', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '13', status: 'normal', referenceRange: '7 - 20'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '14', status: 'normal', referenceRange: '7 - 20'},
-        ],
-      },
-      {
-        id: 'creatinine', name: 'Creatinine', unit: 'mg/dL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '0.94', status: 'normal', referenceRange: '0.6 - 1.2'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '0.88', status: 'normal', referenceRange: '0.6 - 1.2'},
-        ],
-      },
-      {
-        id: 'sgpt', name: 'SGPT (ALT)', unit: 'U/L',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '60', status: 'high', referenceRange: '7 - 56'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '48', status: 'normal', referenceRange: '7 - 56'},
-        ],
-      },
-      {
-        id: 'sgot', name: 'SGOT (AST)', unit: 'U/L',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '0.56', status: 'normal', referenceRange: '10 - 40'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '0.26', status: 'normal', referenceRange: '10 - 40'},
-        ],
-      },
-    ],
-  },
-  {
-    id: 'cbc',
-    label: 'CBC',
-    icon: 'cell',
-    tests: [
-      {
-        id: 'wbc', name: 'WBC', unit: 'x10³/µL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '6.8', status: 'normal', referenceRange: '4.5 - 11.0'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '7.2', status: 'normal', referenceRange: '4.5 - 11.0'},
-        ],
-      },
-      {
-        id: 'rbc', name: 'RBC', unit: 'x10⁶/µL',
-        results: [
-          {date: 'Feb 08, 2026', dateObj: new Date(2026, 1, 8), value: '4.9', status: 'normal', referenceRange: '4.5 - 5.5'},
-          {date: 'Jul 15, 2026', dateObj: new Date(2026, 6, 15), value: '5.1', status: 'normal', referenceRange: '4.5 - 5.5'},
-        ],
-      },
-    ],
-  },
-];
-
-const summary = {normal: 11, high: 3, low: 1, improvement: 6};
-
-// --- Helpers ---
-const statusColor: Record<ResultStatus, string> = {
-  normal: '#14B8A6',
-  high: '#F97316',
-  low: '#EF4444',
+const statusColor: Record<string, string> = {
+  normal: '#14B8A6', high: '#F97316', low: '#EF4444', unknown: '#9ca3af',
+};
+const statusBg: Record<string, string> = {
+  normal: '#F0FDFA', high: '#FFF7ED', low: '#FEF2F2', unknown: '#F9FAFB',
+};
+const statusLabel: Record<string, string> = {
+  normal: 'Normal', high: 'High', low: 'Low', unknown: '—',
+};
+const statusIcon: Record<string, string> = {
+  normal: '✓', high: '▲', low: '▼', unknown: '·',
 };
 
-const statusBg: Record<ResultStatus, string> = {
-  normal: '#F0FDFA',
-  high: '#FFF7ED',
-  low: '#FEF2F2',
-};
-
-const statusLabel: Record<ResultStatus, string> = {
-  normal: 'Normal',
-  high: 'High',
-  low: 'Low',
-};
-
-const statusIcon: Record<ResultStatus, string> = {
-  normal: '✓',
-  high: '▲',
-  low: '▼',
-};
-
-function StatusBadge({status}: {status: ResultStatus}) {
+function StatusBadge({status}: {status: string}) {
+  const s = status || 'unknown';
   return (
     <View
       className="flex-row items-center gap-x-1 px-2 py-0.5 rounded-full"
-      style={{backgroundColor: statusBg[status]}}>
-      <Text style={{color: statusColor[status], fontSize: 10}}>{statusIcon[status]}</Text>
-      <Text style={{color: statusColor[status]}} className="text-xs font-semibold">
-        {statusLabel[status]}
+      style={{backgroundColor: statusBg[s] ?? statusBg.unknown}}>
+      <Text style={{color: statusColor[s] ?? statusColor.unknown, fontSize: 10}}>
+        {statusIcon[s] ?? statusIcon.unknown}
+      </Text>
+      <Text style={{color: statusColor[s] ?? statusColor.unknown}} className="text-xs font-semibold">
+        {statusLabel[s] ?? '—'}
       </Text>
     </View>
   );
 }
 
-function TestCard({test, filteredDates}: {test: TestItem; filteredDates: Date[]}) {
+// ─── merged category type (built-in + user-created) ──────────────────────────
+
+interface DisplayCategory {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+}
+
+// ─── TestCard ─────────────────────────────────────────────────────────────────
+
+interface TestRow {
+  testName: string;
+  unit: string;
+  normalRange: string;
+  value: string;
+  status: string;
+  date: string;
+  dateObj: Date;
+}
+
+function TestCard({testName, rows}: {testName: string; rows: TestRow[]}) {
   const [expanded, setExpanded] = useState(false);
+  if (rows.length === 0) return null;
 
-  const filteredResults = test.results.filter(r =>
-    filteredDates.some(d => d.toDateString() === r.dateObj.toDateString())
-  );
-
-  if (filteredResults.length === 0) return null;
-
-  const latest = filteredResults[filteredResults.length - 1];
+  const latest = rows[rows.length - 1];
 
   return (
     <TouchableOpacity
       onPress={() => setExpanded(e => !e)}
       activeOpacity={0.8}
       className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
-
-      {/* Collapsed Row */}
       <View className="flex-row items-center justify-between">
         <View className="flex-1 mr-3">
-          <Text className="text-gray-800 text-sm font-semibold">{test.name}</Text>
-          <Text className="text-gray-400 text-xs mt-0.5">{test.unit}</Text>
+          <Text className="text-gray-800 text-sm font-semibold">{testName}</Text>
+          <Text className="text-gray-400 text-xs mt-0.5">{latest.unit}</Text>
         </View>
         <View className="items-end gap-1">
-          <Text className="text-gray-700 text-sm font-bold">{latest.value} {test.unit}</Text>
+          <Text className="text-gray-700 text-sm font-bold">
+            {latest.value} {latest.unit}
+          </Text>
           <StatusBadge status={latest.status} />
         </View>
         <Text className="text-gray-400 text-base ml-2">{expanded ? '▲' : '▼'}</Text>
       </View>
 
-      {/* Expanded History */}
       {expanded && (
         <View className="mt-3 pt-3 border-t border-gray-100">
           <Text className="text-gray-400 text-xs font-semibold uppercase mb-2">History</Text>
-
-          {/* Header row */}
           <View className="flex-row items-center pb-1 mb-1 border-b border-gray-100">
             <Text className="text-gray-400 text-xs w-24">Date</Text>
             <Text className="text-gray-400 text-xs flex-1 text-center">Value</Text>
             <Text className="text-gray-400 text-xs w-20 text-center">Ref. Range</Text>
             <Text className="text-gray-400 text-xs w-16 text-right">Status</Text>
           </View>
-
-          {filteredResults.map((result, index) => (
+          {rows.map((r, i) => (
             <View
-              key={index}
+              key={i}
               className="flex-row items-center py-2"
-              style={{borderBottomWidth: index < filteredResults.length - 1 ? 1 : 0, borderBottomColor: '#F3F4F6'}}>
-              <Text className="text-gray-500 text-xs w-24">{result.date}</Text>
-              <Text className="text-gray-800 text-sm font-semibold flex-1 text-center">{result.value}</Text>
-              <Text className="text-gray-400 text-xs w-20 text-center">{result.referenceRange}</Text>
+              style={{
+                borderBottomWidth: i < rows.length - 1 ? 1 : 0,
+                borderBottomColor: '#F3F4F6',
+              }}>
+              <Text className="text-gray-500 text-xs w-24">{r.date}</Text>
+              <Text className="text-gray-800 text-sm font-semibold flex-1 text-center">
+                {r.value}
+              </Text>
+              <Text className="text-gray-400 text-xs w-20 text-center">
+                {r.normalRange || '—'}
+              </Text>
               <View className="w-16 items-end">
-                <StatusBadge status={result.status} />
+                <StatusBadge status={r.status} />
               </View>
             </View>
           ))}
 
-          {/* Trend */}
-          {filteredResults.length >= 2 && (() => {
-            const prev = parseFloat(filteredResults[filteredResults.length - 2].value);
-            const curr = parseFloat(filteredResults[filteredResults.length - 1].value);
+          {rows.length >= 2 && (() => {
+            const prev = parseFloat(rows[rows.length - 2].value);
+            const curr = parseFloat(rows[rows.length - 1].value);
+            if (isNaN(prev) || isNaN(curr)) return null;
             const diff = curr - prev;
             const pct = prev !== 0 ? ((diff / prev) * 100).toFixed(1) : '0';
             const improved = diff < 0;
             return (
               <View className="flex-row items-center gap-1 mt-2">
-                <Text style={{color: improved ? '#14B8A6' : '#F97316'}} className="text-xs font-semibold">
+                <Text
+                  style={{color: improved ? '#14B8A6' : '#F97316'}}
+                  className="text-xs font-semibold">
                   {diff > 0 ? '+' : ''}{pct}%
                 </Text>
                 <Text className="text-gray-400 text-xs">vs. previous checkup</Text>
@@ -260,41 +155,153 @@ function TestCard({test, filteredDates}: {test: TestItem; filteredDates: Date[]}
   );
 }
 
+// ─── CheckupScreen ────────────────────────────────────────────────────────────
+
 export default function CheckupScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<ReportsStackParamList>>();
-  const [selectedCategory, setSelectedCategory] = useState(categories[0]);
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<any>();
+
+  const [allCategories, setAllCategories] = useState<DisplayCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showIconPicker, setShowIconPicker] = useState(false);
-  const [fromDate, setFromDate] = useState(new Date(2026, 1, 8));
-  const [toDate, setToDate] = useState(new Date(2026, 6, 15));
+  const [fromDate, setFromDate] = useState(() => {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d;
+  });
+  const [toDate, setToDate] = useState(new Date());
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
+  const [testRows, setTestRows] = useState<Record<string, TestRow[]>>({});
+  const [loading, setLoading] = useState(true);
 
   const formatDate = (d: Date) =>
     d.toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'});
 
-  // Collect all unique dates within range across all tests
-  const allDatesInRange = Array.from(
-    new Set(
-      selectedCategory.tests.flatMap(t =>
-        t.results
-          .filter(r => r.dateObj >= fromDate && r.dateObj <= toDate)
-          .map(r => r.dateObj.toDateString())
-      )
-    )
-  ).map(d => new Date(d));
+  // ── load data ──────────────────────────────────────────────────────────────
+  const loadData = useCallback(() => {
+    const run = async () => {
+      setLoading(true);
+      try {
+        // Merge built-in + user-created categories
+        const userCats = await getCategories();
+        const builtIn: DisplayCategory[] = BUILT_IN_CATEGORIES.map(c => ({
+          id: c.id, label: c.label, icon: c.icon, color: '#14B8A6',
+        }));
+        const userDisplay: DisplayCategory[] = userCats.map(c => ({
+          id: c.id, label: c.label, icon: c.icon, color: c.color,
+        }));
+        const merged = [...builtIn, ...userDisplay];
+        setAllCategories(merged);
+
+        // Use the latest selectedCategoryId from state, fall back to first category
+        setSelectedCategoryId(prev => {
+          const activeCatId = prev || merged[0]?.id || '';
+          if (!activeCatId) return prev;
+
+          // Fire the async load inside the setter so we have the resolved id
+          (async () => {
+            try {
+              // Fetch reports for this category
+              const reports = await getCheckupReportsByCategory(activeCatId);
+              if (reports.length === 0) { setTestRows({}); setLoading(false); return; }
+
+              // Fetch test results for each report using a targeted query
+              const allResults: {
+                testName: string; unit: string; normalRange: string;
+                value: string; status: string; reportDate: Date;
+              }[] = [];
+
+              for (const report of reports) {
+                const results = await database
+                  .get<TestResult>('test_results')
+                  .query(Q.where('report_id', report.id))
+                  .fetch();
+                const reportDate = new Date(report.checkupDate);
+                results.forEach(r => {
+                  allResults.push({
+                    testName: r.testName,
+                    unit: r.unit,
+                    normalRange: r.normalRange,
+                    value: r.value,
+                    status: r.status,
+                    reportDate,
+                  });
+                });
+              }
+
+              // Group by test name, filtered by date range
+              const grouped: Record<string, TestRow[]> = {};
+              for (const r of allResults) {
+                if (r.reportDate < fromDate || r.reportDate > toDate) continue;
+                const row: TestRow = {
+                  testName: r.testName,
+                  unit: r.unit,
+                  normalRange: r.normalRange,
+                  value: r.value,
+                  status: r.status,
+                  date: r.reportDate.toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'}),
+                  dateObj: r.reportDate,
+                };
+                if (!grouped[r.testName]) grouped[r.testName] = [];
+                grouped[r.testName].push(row);
+              }
+
+              // Sort each group by date ascending
+              Object.values(grouped).forEach(rows =>
+                rows.sort((a, b) => a.dateObj.getTime() - b.dateObj.getTime()),
+              );
+              setTestRows(grouped);
+            } finally {
+              setLoading(false);
+            }
+          })();
+
+          return activeCatId;
+        });
+      } catch {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [fromDate, toDate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      // If returning from a save, auto-select the category that was just saved
+      const savedCategoryId = route.params?.savedCategoryId as string | undefined;
+      if (savedCategoryId) {
+        setSelectedCategoryId(savedCategoryId);
+      }
+      loadData();
+    }, [loadData, route.params?.savedCategoryId]),
+  );
+
+  // Reload results when the user switches categories
+  useEffect(() => {
+    if (!selectedCategoryId) return;
+    loadData();
+  }, [selectedCategoryId]);
+
+  // ── summary ────────────────────────────────────────────────────────────────
+  const allLatest = Object.values(testRows).map(rows => rows[rows.length - 1]);
+  const summary = {
+    normal: allLatest.filter(r => r.status === 'normal').length,
+    high:   allLatest.filter(r => r.status === 'high').length,
+    low:    allLatest.filter(r => r.status === 'low').length,
+  };
+
+  const selectedCategory = allCategories.find(c => c.id === selectedCategoryId);
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
-      {/* Header */}
-      <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
-        <Text className="text-white text-2xl font-bold">Checkup Reports</Text>
-        <Text className="text-teal-100 text-sm mt-1">
-          View and track your health results over time.
-        </Text>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View className="bg-teal-500 px-5 pt-10 pb-8 rounded-b-3xl">
+          <Text className="text-white text-2xl font-bold">Checkup Reports</Text>
+          <Text className="text-teal-100 text-sm mt-1">
+            View and track your health results over time.
+          </Text>
+        </View>
+
         <View className="px-4 mt-4">
 
           {/* Category Dropdown */}
@@ -304,23 +311,47 @@ export default function CheckupScreen() {
               onPress={() => setShowCategoryDropdown(v => !v)}
               className="flex-row items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3">
               <View className="flex-row items-center gap-x-2">
-                <CategoryIcon iconKey={selectedCategory.icon} size={18} color="#14B8A6" />
-                <Text className="text-gray-700 text-sm font-medium">{selectedCategory.label}</Text>
+                {selectedCategory && (
+                  <CategoryIcon
+                    iconKey={selectedCategory.icon as CategoryIconKey}
+                    size={18}
+                    color={selectedCategory.color}
+                  />
+                )}
+                <Text className="text-gray-700 text-sm font-medium">
+                  {selectedCategory?.label ?? 'Select category'}
+                </Text>
               </View>
               <Text className="text-gray-400">{showCategoryDropdown ? '▲' : '▼'}</Text>
             </TouchableOpacity>
+
             {showCategoryDropdown && (
               <View
                 className="border border-gray-200 rounded-xl overflow-hidden bg-white"
-                style={{position: 'absolute', top: 72, left: 0, right: 0, zIndex: 20, elevation: 5,
-                  shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.1, shadowRadius: 4}}>
-                {categories.map((cat, i) => (
+                style={{
+                  position: 'absolute', top: 72, left: 0, right: 0, zIndex: 20,
+                  elevation: 5, shadowColor: '#000',
+                  shadowOffset: {width: 0, height: 2},
+                  shadowOpacity: 0.1, shadowRadius: 4,
+                }}>
+                {allCategories.map((cat, i) => (
                   <TouchableOpacity
                     key={cat.id}
-                    onPress={() => { setSelectedCategory(cat); setShowCategoryDropdown(false); }}
-                    className={`flex-row items-center gap-x-3 px-4 py-3 ${selectedCategory.id === cat.id ? 'bg-teal-50' : 'bg-white'} ${i < categories.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                    <CategoryIcon iconKey={cat.icon} size={18} color={selectedCategory.id === cat.id ? '#14B8A6' : '#6B7280'} />
-                    <Text className={`text-sm ${selectedCategory.id === cat.id ? 'text-teal-600 font-medium' : 'text-gray-700'}`}>
+                    onPress={() => {
+                      setSelectedCategoryId(cat.id);
+                      setShowCategoryDropdown(false);
+                    }}
+                    className={`flex-row items-center gap-x-3 px-4 py-3 ${
+                      cat.id === selectedCategoryId ? 'bg-teal-50' : 'bg-white'
+                    } ${i < allCategories.length - 1 ? 'border-b border-gray-100' : ''}`}>
+                    <CategoryIcon
+                      iconKey={cat.icon as CategoryIconKey}
+                      size={18}
+                      color={cat.id === selectedCategoryId ? cat.color : '#6B7280'}
+                    />
+                    <Text className={`text-sm ${
+                      cat.id === selectedCategoryId ? 'text-teal-600 font-medium' : 'text-gray-700'
+                    }`}>
                       {cat.label}
                     </Text>
                   </TouchableOpacity>
@@ -336,7 +367,7 @@ export default function CheckupScreen() {
               <TouchableOpacity
                 onPress={() => setShowFromPicker(true)}
                 className="flex-row items-center gap-x-2 bg-white border border-gray-200 rounded-xl px-3 py-3">
-                <Calendar width={20} height={20} color='black' />
+                <Calendar width={20} height={20} color="black" />
                 <Text className="text-gray-600 text-sm">{formatDate(fromDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -345,7 +376,7 @@ export default function CheckupScreen() {
               <TouchableOpacity
                 onPress={() => setShowToPicker(true)}
                 className="flex-row items-center gap-x-2 bg-white border border-gray-200 rounded-xl px-3 py-3">
-                <Calendar width={20} height={20} color='black' />
+                <Calendar width={20} height={20} color="black" />
                 <Text className="text-gray-600 text-sm">{formatDate(toDate)}</Text>
               </TouchableOpacity>
             </View>
@@ -369,6 +400,7 @@ export default function CheckupScreen() {
               mode="date"
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               minimumDate={fromDate}
+              maximumDate={new Date()}
               onChange={(_, selected) => {
                 setShowToPicker(false);
                 if (selected) setToDate(selected);
@@ -376,80 +408,80 @@ export default function CheckupScreen() {
             />
           )}
 
-          {/* Overall Summary */}
-          <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
-            <Text className="text-gray-800 font-bold text-sm mb-3">Overall Summary</Text>
-            <View className="flex-row flex-wrap gap-3">
-              <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-teal-50 rounded-xl p-3">
-                <View className="w-8 h-8 bg-teal-500 rounded-full items-center justify-center">
-                  <Text className="text-white text-xs font-bold">✓</Text>
+          {loading ? (
+            <ActivityIndicator color="#14B8A6" style={{marginTop: 40}} />
+          ) : (
+            <>
+              {/* Overall Summary */}
+              {allLatest.length > 0 && (
+                <View className="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                  <Text className="text-gray-800 font-bold text-sm mb-3">Overall Summary</Text>
+                  <View className="flex-row flex-wrap gap-3">
+                    <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-teal-50 rounded-xl p-3">
+                      <View className="w-8 h-8 bg-teal-500 rounded-full items-center justify-center">
+                        <Text className="text-white text-xs font-bold">✓</Text>
+                      </View>
+                      <View>
+                        <Text className="text-teal-600 text-lg font-bold">{summary.normal}</Text>
+                        <Text className="text-gray-400 text-xs">Normal</Text>
+                      </View>
+                    </View>
+                    <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-orange-50 rounded-xl p-3">
+                      <View className="w-8 h-8 bg-orange-400 rounded-full items-center justify-center">
+                        <Text className="text-white text-xs font-bold">▲</Text>
+                      </View>
+                      <View>
+                        <Text className="text-orange-500 text-lg font-bold">{summary.high}</Text>
+                        <Text className="text-gray-400 text-xs">High</Text>
+                      </View>
+                    </View>
+                    <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-red-50 rounded-xl p-3">
+                      <View className="w-8 h-8 bg-red-400 rounded-full items-center justify-center">
+                        <Text className="text-white text-xs font-bold">▼</Text>
+                      </View>
+                      <View>
+                        <Text className="text-red-500 text-lg font-bold">{summary.low}</Text>
+                        <Text className="text-gray-400 text-xs">Low</Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
-                <View>
-                  <Text className="text-teal-600 text-lg font-bold">{summary.normal}</Text>
-                  <Text className="text-gray-400 text-xs">Normal</Text>
-                  <Text className="text-gray-400 text-xs">Within range</Text>
-                </View>
-              </View>
-              <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-orange-50 rounded-xl p-3">
-                <View className="w-8 h-8 bg-orange-400 rounded-full items-center justify-center">
-                  <Text className="text-white text-xs font-bold">▲</Text>
-                </View>
-                <View>
-                  <Text className="text-orange-500 text-lg font-bold">{summary.high}</Text>
-                  <Text className="text-gray-400 text-xs">High</Text>
-                  <Text className="text-gray-400 text-xs">Above range</Text>
-                </View>
-              </View>
-              <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-red-50 rounded-xl p-3">
-                <View className="w-8 h-8 bg-red-400 rounded-full items-center justify-center">
-                  <Text className="text-white text-xs font-bold">▼</Text>
-                </View>
-                <View>
-                  <Text className="text-red-500 text-lg font-bold">{summary.low}</Text>
-                  <Text className="text-gray-400 text-xs">Low</Text>
-                  <Text className="text-gray-400 text-xs">Below range</Text>
-                </View>
-              </View>
-              <View className="flex-1 min-w-[40%] flex-row items-center gap-2 bg-blue-50 rounded-xl p-3">
-                <View className="w-8 h-8 bg-blue-400 rounded-full items-center justify-center">
-                  <Text className="text-white text-xs font-bold">↑</Text>
-                </View>
-                <View>
-                  <Text className="text-blue-500 text-lg font-bold">+{summary.improvement}%</Text>
-                  <Text className="text-gray-400 text-xs">Improvement</Text>
-                  <Text className="text-gray-400 text-xs">vs. previous</Text>
-                </View>
-              </View>
-            </View>
-          </View>
+              )}
 
-          {/* Test Results */}
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-gray-800 font-bold text-sm">{selectedCategory.label}</Text>
-            <View className="flex-row gap-3">
-              {(['normal', 'high', 'low'] as ResultStatus[]).map(s => (
-                <View key={s} className="flex-row items-center gap-1">
-                  <View className="w-2 h-2 rounded-full" style={{backgroundColor: statusColor[s]}} />
-                  <Text className="text-gray-400 text-xs capitalize">{s}</Text>
+              {/* Test results */}
+              {Object.keys(testRows).length === 0 ? (
+                <View className="items-center py-12">
+                  <Text className="text-gray-400 text-sm text-center">
+                    No results for this category{'\n'}in the selected date range.
+                  </Text>
                 </View>
-              ))}
-            </View>
-          </View>
-
-          {selectedCategory.tests.map(test => (
-            <TestCard key={test.id} test={test} filteredDates={allDatesInRange} />
-          ))}
+              ) : (
+                <>
+                  <View className="flex-row items-center justify-between mb-3">
+                    <Text className="text-gray-800 font-bold text-sm">
+                      {selectedCategory?.label}
+                    </Text>
+                    <View className="flex-row gap-3">
+                      {(['normal', 'high', 'low'] as const).map(s => (
+                        <View key={s} className="flex-row items-center gap-1">
+                          <View className="w-2 h-2 rounded-full" style={{backgroundColor: statusColor[s]}} />
+                          <Text className="text-gray-400 text-xs capitalize">{s}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                  {Object.entries(testRows).map(([testName, rows]) => (
+                    <TestCard key={testName} testName={testName} rows={rows} />
+                  ))}
+                </>
+              )}
+            </>
+          )}
 
           <View className="h-24" />
         </View>
       </ScrollView>
 
-      <CategoryIconPickerModal
-        visible={showIconPicker}
-        selected={selectedCategory.icon}
-        onSelect={() => {}}
-        onClose={() => setShowIconPicker(false)}
-      />
       <FloatingAddButton onPress={() => navigation.navigate('AddCheckupReport')} />
     </SafeAreaView>
   );

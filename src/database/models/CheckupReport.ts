@@ -1,5 +1,5 @@
 import {Model} from '@nozbe/watermelondb';
-import {field, date, readonly, children} from '@nozbe/watermelondb/decorators';
+import {field, date, nochange, children} from '@nozbe/watermelondb/decorators';
 
 export default class CheckupReport extends Model {
   static table = 'checkup_reports';
@@ -7,10 +7,10 @@ export default class CheckupReport extends Model {
     test_results: {type: 'has_many' as const, foreignKey: 'report_id'},
   };
 
-  @field('category') category!: string;
+  @field('category_id') categoryId!: string; // built-in id e.g. "clinical" or user category row id
   @date('checkup_date') checkupDate!: Date;
-  @readonly @date('created_at') createdAt!: Date;
-  @readonly @date('updated_at') updatedAt!: Date;
+  @nochange @date('created_at') createdAt!: Date;
+  @date('updated_at') updatedAt!: Date;
 
   @children('test_results') testResults!: any;
 }

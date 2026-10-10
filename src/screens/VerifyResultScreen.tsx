@@ -1,12 +1,14 @@
 import React, {useState} from 'react';
 import {
   View, Text, SafeAreaView, TouchableOpacity,
-  ScrollView, TextInput,
+  ScrollView, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
+import {addCheckupReport} from '../database/services';
+import {computeStatus} from '../data/categoryDefinitions';
 
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
 type Route = RouteProp<ReportsStackParamList, 'VerifyResult'>;
@@ -14,23 +16,57 @@ type Route = RouteProp<ReportsStackParamList, 'VerifyResult'>;
 export default function VerifyResultScreen() {
   const navigation = useNavigation<Nav>();
   const {params} = useRoute<Route>();
-  const {categoryLabel, categoryIcon, entries, date, isOCR} = params;
+  const {categoryId, categoryLabel, categoryIcon, entries, date, isOCR} = params;
 
-  // Local editable state — initialised from OCR/manual entries
-  const [editableEntries, setEditableEntries] = useState(
-    entries.map(e => ({...e}))
-  );
+  const [editableEntries, setEditableEntries] = useState(entries.map(e => ({...e})));
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const updateValue = (index: number, value: string) => {
     setEditableEntries(prev => prev.map((e, i) => i === index ? {...e, value} : e));
   };
 
-  // Confidence logic — only relevant for OCR
+  // Confidence logic — OCR only
   const detectedCount = editableEntries.filter(e => e.value.trim() !== '').length;
   const totalCount = editableEntries.length;
   const detectionRatio = totalCount > 0 ? detectedCount / totalCount : 1;
   const isLowConfidence = isOCR && detectionRatio < 0.5;
+
+  // Parse the date string back to a Date object for the DB
+  const parseDateString = (s: string): Date => {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+
+  const handleProceed = async () => {
+    // Filter to only filled entries
+    const filled = editableEntries.filter(e => e.value.trim() !== '');
+    if (filled.length === 0) {
+      Alert.alert('No values', 'Please enter at least one test result before saving.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await addCheckupReport({
+        categoryId,
+        checkupDate: parseDateString(date),
+        results: filled.map(e => ({
+          testName: e.fieldName,
+          unit: e.unit ?? '',
+          normalRange: (e as any).normalRange ?? '',
+          value: e.value.trim(),
+          status: computeStatus(e.value.trim(), (e as any).normalRange ?? ''),
+        })),
+      });
+      // Pass the saved categoryId back so CheckupScreen can auto-select it
+      navigation.navigate('ReportsMain', {savedCategoryId: categoryId} as any);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to save results. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -46,14 +82,14 @@ export default function VerifyResultScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4">
 
-        {/* Low confidence warning banner */}
+        {/* Low confidence warning */}
         {isLowConfidence && (
           <View className="flex-row items-start gap-3 bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 mt-4">
             <Text className="text-orange-500 text-base mt-0.5">⚠️</Text>
             <View className="flex-1">
               <Text className="text-orange-700 text-sm font-semibold mb-0.5">Low OCR Confidence</Text>
               <Text className="text-orange-600 text-xs">
-                We could only detect {detectedCount} of {totalCount} fields. Please provide a clearer, well-lit image of your lab report, or switch to Manual Entry for accurate results.
+                We could only detect {detectedCount} of {totalCount} fields. Please provide a clearer image or switch to Manual Entry.
               </Text>
               <TouchableOpacity
                 onPress={() => navigation.goBack()}
@@ -81,7 +117,7 @@ export default function VerifyResultScreen() {
 
         {/* OCR detection summary */}
         {isOCR && (
-          <View className="flex-row items-center gap-2 mb-3">
+          <View className="flex-row items-center gap-2 mb-3 flex-wrap">
             <View className="flex-row items-center gap-1 bg-teal-50 rounded-full px-3 py-1">
               <Text className="text-teal-600 text-xs font-semibold">✓ {detectedCount} detected</Text>
             </View>
@@ -100,17 +136,22 @@ export default function VerifyResultScreen() {
 
         {/* Results Table */}
         <View className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-6">
-          {/* Table Header */}
           <View className="flex-row bg-gray-50 px-4 py-3 border-b border-gray-200">
             <Text className="flex-1 text-gray-500 text-xs font-semibold uppercase">Fields</Text>
             {isOCR && <Text className="w-6" />}
             <Text className="w-32 text-gray-500 text-xs font-semibold uppercase text-right">Values</Text>
           </View>
 
-          {/* Table Rows */}
           {editableEntries.map((entry, index) => {
             const isDetected = entry.value.trim() !== '';
             const isEditing = editingIndex === index;
+            const status = isDetected
+              ? computeStatus(entry.value, (entry as any).normalRange ?? '')
+              : 'unknown';
+            const statusColor = status === 'normal' ? '#14B8A6'
+              : status === 'high' ? '#F97316'
+              : status === 'low' ? '#EF4444'
+              : '#9ca3af';
 
             return (
               <View
@@ -122,10 +163,15 @@ export default function VerifyResultScreen() {
                   backgroundColor: isEditing ? '#F0FDFA' : 'transparent',
                 }}>
 
-                {/* Field name */}
-                <Text className="flex-1 text-gray-700 text-sm">{entry.fieldName}</Text>
+                {/* Field + status dot */}
+                <View className="flex-1 flex-row items-center gap-2">
+                  <Text className="text-gray-700 text-sm">{entry.fieldName}</Text>
+                  {isDetected && status !== 'unknown' && (
+                    <View className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: statusColor}} />
+                  )}
+                </View>
 
-                {/* Confidence badge — OCR only */}
+                {/* OCR confidence badge */}
                 {isOCR && (
                   <View
                     className="w-5 h-5 rounded-full items-center justify-center mr-2"
@@ -154,7 +200,7 @@ export default function VerifyResultScreen() {
                   ) : (
                     <Text
                       className="text-sm font-semibold text-right"
-                      style={{color: isDetected ? '#1F2937' : '#9ca3af'}}>
+                      style={{color: isDetected ? statusColor : '#9ca3af'}}>
                       {isDetected
                         ? `${entry.value}${entry.unit ? ` ${entry.unit}` : ''}`
                         : '—'}
@@ -177,9 +223,14 @@ export default function VerifyResultScreen() {
           <Text className="text-gray-600 font-semibold text-base">Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => navigation.navigate('ReportsMain')}
-          className="flex-1 bg-teal-500 rounded-2xl py-4 items-center">
-          <Text className="text-white font-semibold text-base">Proceed</Text>
+          onPress={handleProceed}
+          disabled={saving}
+          className="flex-1 bg-teal-500 rounded-2xl py-4 items-center"
+          style={{opacity: saving ? 0.7 : 1}}>
+          {saving
+            ? <ActivityIndicator color="#ffffff" />
+            : <Text className="text-white font-semibold text-base">Save Results</Text>
+          }
         </TouchableOpacity>
       </View>
     </SafeAreaView>

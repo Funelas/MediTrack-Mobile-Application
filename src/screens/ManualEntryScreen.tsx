@@ -7,48 +7,23 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
+import {getFieldsForCategory} from '../data/categoryDefinitions';
 import Calendar from '../assets/svg_icons/calendar.svg';
+
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
 type Route = RouteProp<ReportsStackParamList, 'ManualEntry'>;
-
-// Mirrors the category fields from CheckupScreen placeholder data
-const CATEGORY_FIELDS: Record<string, {name: string; unit?: string; required?: boolean}[]> = {
-  clinical: [
-    {name: 'HbA1C',            unit: '%',      required: true},
-    {name: 'Magnesium',        unit: 'mg/dL'},
-    {name: 'FBS',              unit: 'mg/dL',  required: true},
-    {name: 'Total Cholesterol',unit: 'mg/dL'},
-    {name: 'HDL',              unit: 'mg/dL'},
-    {name: 'LDL',              unit: 'mg/dL'},
-    {name: 'VLDL',             unit: 'mg/dL'},
-    {name: 'Triglycerides',    unit: 'mg/dL'},
-    {name: 'BUN',              unit: 'mg/dL'},
-    {name: 'BUA',              unit: 'mg/dL'},
-    {name: 'Creatinine',       unit: 'mg/dL'},
-    {name: 'SGPT (ALT)',       unit: 'U/L'},
-    {name: 'SGOT (AST)',       unit: 'U/L'},
-    {name: 'Sodium',           unit: 'mEq/L'},
-    {name: 'Potassium',        unit: 'mEq/L'},
-    {name: 'Ionized Calcium',  unit: 'mEq/L'},
-  ],
-  cbc: [
-    {name: 'WBC',  unit: 'x10³/µL', required: true},
-    {name: 'RBC',  unit: 'x10⁶/µL', required: true},
-    {name: 'HGB',  unit: 'g/dL'},
-    {name: 'HCT',  unit: '%'},
-    {name: 'MCV',  unit: 'fL'},
-    {name: 'MCH',  unit: 'pg'},
-    {name: 'MCHC', unit: 'g/dL'},
-    {name: 'PLT',  unit: 'x10³/µL'},
-  ],
-};
 
 export default function ManualEntryScreen() {
   const navigation = useNavigation<Nav>();
   const {params} = useRoute<Route>();
   const {categoryId, categoryLabel, categoryIcon} = params;
 
-  const fields = CATEGORY_FIELDS[categoryId] ?? [];
+  // For built-in categories, use shared definitions.
+  // For user-created categories the fields arrive via params.fields (JSON).
+  const fields = (params as any).fields
+    ? JSON.parse((params as any).fields)
+    : getFieldsForCategory(categoryId);
+
   const [values, setValues] = useState<Record<string, string>>({});
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -57,10 +32,12 @@ export default function ManualEntryScreen() {
     d.toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'});
 
   const handleProceed = () => {
-    const entries = fields.map(f => ({
+    // Include normalRange so VerifyResultScreen can compute status at save time
+    const entries = fields.map((f: any) => ({
       fieldName: f.name,
       value: values[f.name] ?? '',
-      unit: f.unit,
+      unit: f.unit ?? '',
+      normalRange: f.normalRange ?? '',
     }));
     navigation.navigate('VerifyResult', {
       categoryId,
@@ -94,7 +71,7 @@ export default function ManualEntryScreen() {
         <TouchableOpacity
           onPress={() => setShowDatePicker(true)}
           className="flex-row items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 mb-4">
-          <Calendar width={20} height={20} color='black'/>
+          <Calendar width={20} height={20} color="black" />
           <Text className="text-gray-700 text-sm">{formatDate(date)}</Text>
         </TouchableOpacity>
 
@@ -112,26 +89,34 @@ export default function ManualEntryScreen() {
         )}
 
         {/* Fields */}
-        {fields.map(field => (
+        {fields.length === 0 && (
+          <Text className="text-gray-400 text-sm text-center mt-8">
+            No fields defined for this category.
+          </Text>
+        )}
+        {fields.map((field: any) => (
           <View key={field.name} className="mb-3">
-            <Text className="text-gray-700 text-sm font-medium mb-1">
-              {field.name}
-              {field.required && <Text className="text-red-400"> *</Text>}
-            </Text>
+            <View className="flex-row items-center gap-1 mb-1">
+              <Text className="text-gray-700 text-sm font-medium">{field.name}</Text>
+              {field.required && <Text className="text-red-400 text-sm">*</Text>}
+              {field.normalRange ? (
+                <Text className="text-gray-400 text-xs ml-1">({field.normalRange})</Text>
+              ) : null}
+            </View>
             <View className="flex-row gap-2">
               <TextInput
                 value={values[field.name] ?? ''}
                 onChangeText={v => setValues(prev => ({...prev, [field.name]: v}))}
                 placeholder="Enter value"
                 placeholderTextColor="#9ca3af"
-                keyboardType="numeric"
+                keyboardType={field.type === 'descriptive' ? 'default' : 'numeric'}
                 className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm"
               />
-              {field.unit && (
+              {field.unit ? (
                 <View className="border border-gray-200 rounded-xl px-3 py-3 justify-center">
                   <Text className="text-gray-500 text-sm">{field.unit}</Text>
                 </View>
-              )}
+              ) : null}
             </View>
           </View>
         ))}

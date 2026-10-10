@@ -13,7 +13,7 @@ export type ReportsStackParamList = {
   CreateCategory: undefined;
   InputMethod: {categoryId: string; categoryLabel: string; categoryIcon: string};
   ManualEntry: {categoryId: string; categoryLabel: string; categoryIcon: string};
-  VerifyResult: {categoryId: string; categoryLabel: string; categoryIcon: string; entries: {fieldName: string; value: string; unit?: string}[]; date: string; isOCR?: boolean};
+  VerifyResult: {categoryId: string; categoryLabel: string; categoryIcon: string; entries: {fieldName: string; value: string; unit?: string; normalRange?: string}[]; date: string; isOCR?: boolean};
 };
 
 const Stack = createNativeStackNavigator<ReportsStackParamList>();

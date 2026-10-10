@@ -10,6 +10,8 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 import {useNavigation} from '@react-navigation/native';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
+import {addCategory} from '../database/services';
+import {Alert} from 'react-native';
 
 // --- Types ---
 type FieldType = 'numerical' | 'description';
@@ -467,6 +469,35 @@ export default function CreateCategoryScreen() {
     else setStep((step - 1) as 1 | 2 | 3);
   };
 
+  const handleFinish = async () => {
+    if (!categoryData.name.trim()) {
+      Alert.alert('Required', 'Please enter a category name.');
+      setStep(1);
+      return;
+    }
+    try {
+      // Map Field[] → CategoryField[] shape expected by the DB
+      const categoryFields = fields.map(f => ({
+        name: f.name,
+        unit: f.unit ?? '',
+        normalRange: f.referenceFrom && f.referenceTo
+          ? `${f.referenceFrom}-${f.referenceTo}`
+          : '',
+        required: false,
+        type: f.type === 'description' ? 'descriptive' : 'numerical',
+      }));
+      await addCategory({
+        label: categoryData.name.trim(),
+        icon: categoryData.icon,
+        color: categoryData.color,
+        fields: JSON.stringify(categoryFields),
+      });
+      navigation.goBack();
+    } catch {
+      Alert.alert('Error', 'Failed to save category. Please try again.');
+    }
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       <View className="flex-row items-center px-4 pt-10 pb-3 border-b border-gray-100">
@@ -480,7 +511,7 @@ export default function CreateCategoryScreen() {
 
       {step === 1 && <StepCreate data={categoryData} setData={setCategoryData} onContinue={() => setStep(2)} />}
       {step === 2 && <StepFields fields={fields} setFields={setFields} onContinue={() => setStep(3)} />}
-      {step === 3 && <StepReview categoryData={categoryData} fields={fields} onContinue={() => navigation.goBack()} />}
+      {step === 3 && <StepReview categoryData={categoryData} fields={fields} onContinue={handleFinish} />}
     </SafeAreaView>
   );
 }

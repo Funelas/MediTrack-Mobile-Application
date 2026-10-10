@@ -7,6 +7,7 @@ import Task from './models/Task';
 import Occurrence from './models/Occurrence';
 import CheckupReport from './models/CheckupReport';
 import TestResult from './models/TestResult';
+import Category from './models/Category';
 
 const adapter = new SQLiteAdapter({
   schema,
@@ -19,5 +20,5 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Medicine, IntakeLog, Task, Occurrence, CheckupReport, TestResult],
+  modelClasses: [Medicine, IntakeLog, Task, Occurrence, CheckupReport, TestResult, Category],
 });

@@ -148,27 +148,28 @@ export default function ScheduleDetailScreen() {
 
 
   const handleDelete = async () => {
-    Alert.alert(
-      'Delete Event',
-      `Are you sure you want to delete "${item?.title}"?`,
-      [
-        {text: 'Cancel', style: 'cancel'},
-        {
-          text: 'Confirm',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAllEvents(item!);
-              await rescheduleAllNotifications();
-              navigation.goBack();
-            } catch {
-              Alert.alert('Error', 'Could not delete the event. Please try again.');
-            }
-          },
+  Alert.alert(
+    'Delete Event',
+    `Are you sure you want to delete "${item?.title}"?`,
+    [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Confirm',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            navigation.goBack(); // navigate first before DB operations
+            await deleteAllEvents(item!);
+            await rescheduleAllNotifications();
+          } catch {
+            Alert.alert('Error', 'Could not delete the event. Please try again.');
+          }
         },
-      ],
-    );
-  };
+      },
+    ],
+  );
+};
+
 
 
   const handleEditScope = (scope: EditScope) => {

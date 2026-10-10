@@ -1,6 +1,7 @@
 import notifee, {AndroidImportance, TriggerType, TimestampTrigger, EventType} from '@notifee/react-native';
 import {Platform, PermissionsAndroid, Alert} from 'react-native';
 import {getItemsForDateRange, getMedicines} from '../database/services';
+import {isBatterySaverPermissionAvailable, openOEMBatterySettings, getDeviceBrand} from '../native/BatteryHelper';
 
 export const CHANNELS = {
   MEDICATIONS: 'medications',
@@ -17,6 +18,90 @@ const REMINDER_OFFSET_MINS: Record<string, number> = {
   '1 hour before': 60,
 };
 
+// ─── Brand-aware battery prompt text ─────────────────────────────────────────
+
+function getBatteryPromptText(brand: string, isOEM: boolean): {
+  title: string;
+  message: string;
+  buttonLabel: string;
+} {
+  const b = brand.toLowerCase();
+
+  if (b.includes('samsung')) {
+    return {
+      title: 'Enable Reliable Reminders',
+      message:
+        'Samsung\'s battery manager may delay or block your medication reminders.\n\n' +
+        'On the next screen:\n' +
+        '1. Tap "Device Care"\n' +
+        '2. Tap "Battery"\n' +
+        '3. Tap "App Power Management"\n' +
+        '4. Add MediTrack to "Never sleeping apps"',
+      buttonLabel: 'Open Battery Settings',
+    };
+  }
+
+  if (b.includes('xiaomi') || b.includes('redmi') || b.includes('poco')) {
+    return {
+      title: 'Enable Reliable Reminders',
+      message:
+        'MIUI\'s battery saver may block your medication reminders.\n\n' +
+        'On the next screen:\n' +
+        '1. Find MediTrack in the list\n' +
+        '2. Set battery usage to "No restrictions"',
+      buttonLabel: 'Open Battery Settings',
+    };
+  }
+
+  if (b.includes('huawei') || b.includes('honor')) {
+    return {
+      title: 'Enable Reliable Reminders',
+      message:
+        'Huawei\'s battery manager may stop your medication reminders.\n\n' +
+        'On the next screen:\n' +
+        '1. Find MediTrack\n' +
+        '2. Tap "Manage manually"\n' +
+        '3. Enable Auto-launch, Secondary launch, and Run in background',
+      buttonLabel: 'Open Battery Settings',
+    };
+  }
+
+  if (b.includes('oppo') || b.includes('realme') || b.includes('oneplus')) {
+    return {
+      title: 'Enable Reliable Reminders',
+      message:
+        'ColorOS\'s battery manager may prevent your reminders from firing.\n\n' +
+        'On the next screen:\n' +
+        '1. Find MediTrack\n' +
+        '2. Set to "Allow auto-launch" and disable "Quick Freeze"',
+      buttonLabel: 'Open Battery Settings',
+    };
+  }
+
+  if (b.includes('vivo')) {
+    return {
+      title: 'Enable Reliable Reminders',
+      message:
+        'Vivo\'s battery manager may block your medication reminders.\n\n' +
+        'On the next screen:\n' +
+        '1. Find MediTrack\n' +
+        '2. Enable background and auto-start permissions',
+      buttonLabel: 'Open Battery Settings',
+    };
+  }
+
+  // Stock Android or unknown OEM
+  return {
+    title: 'Enable Reliable Reminders',
+    message:
+      'To make sure you never miss a medication or appointment, allow MediTrack to run without battery restrictions.\n\n' +
+      'On the next screen, find MediTrack and select "Unrestricted".',
+    buttonLabel: 'Allow',
+  };
+}
+
+// ─── Setup ────────────────────────────────────────────────────────────────────
+
 export async function setupNotifications() {
   if (Platform.OS === 'android' && Platform.Version >= 33) {
     await PermissionsAndroid.request(
@@ -24,25 +109,31 @@ export async function setupNotifications() {
     );
   }
 
-  // Show an in-app prompt before opening the system battery settings page,
-  // so the user understands why we're asking.
+  // Battery optimization prompt — personalised per device brand.
+  // Tries OEM-specific screen first, falls back to stock Android via Notifee.
   if (Platform.OS === 'android') {
     const batteryOptimized = await notifee.isBatteryOptimizationEnabled();
     if (batteryOptimized) {
+      const brand = await getDeviceBrand();
+      const isOEM = await isBatterySaverPermissionAvailable();
+
+      const {title, message, buttonLabel} = getBatteryPromptText(brand, isOEM);
+
       await new Promise<void>(resolve => {
         Alert.alert(
-          'Enable Reliable Reminders',
-          'To make sure you never miss a medication or appointment, allow MediTrack to run without battery restrictions.\n\nTap "Allow" then select "Unrestricted" on the next screen.',
+          title,
+          message,
           [
+            {text: 'Not Now', style: 'cancel', onPress: resolve},
             {
-              text: 'Not Now',
-              style: 'cancel',
-              onPress: resolve,
-            },
-            {
-              text: 'Allow',
+              text: buttonLabel,
               onPress: async () => {
-                await notifee.openBatteryOptimizationSettings();
+                if (isOEM) {
+                  const opened = await openOEMBatterySettings();
+                  if (!opened) await notifee.openBatteryOptimizationSettings();
+                } else {
+                  await notifee.openBatteryOptimizationSettings();
+                }
                 resolve();
               },
             },
