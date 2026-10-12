@@ -167,7 +167,11 @@ export default function CheckupScreen() {
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d;
   });
-  const [toDate, setToDate] = useState(new Date());
+  const [toDate, setToDate] = useState(() => {
+    const d = new Date();
+    d.setHours(23, 59, 59, 999); // end of today so records saved today are always included
+    return d;
+  });
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
   const [testRows, setTestRows] = useState<Record<string, TestRow[]>>({});
@@ -403,7 +407,11 @@ export default function CheckupScreen() {
               maximumDate={new Date()}
               onChange={(_, selected) => {
                 setShowToPicker(false);
-                if (selected) setToDate(selected);
+                if (selected) {
+                  const end = new Date(selected);
+                  end.setHours(23, 59, 59, 999); // cover the full selected day
+                  setToDate(end);
+                }
               }}
             />
           )}

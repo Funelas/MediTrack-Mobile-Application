@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import {
   View, Text, SafeAreaView, TouchableOpacity,
-  ScrollView, TextInput, Alert, ActivityIndicator,
+  ScrollView, TextInput, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
@@ -9,6 +9,7 @@ import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
 import {addCheckupReport} from '../database/services';
 import {computeStatus} from '../data/categoryDefinitions';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
 type Route = RouteProp<ReportsStackParamList, 'VerifyResult'>;
@@ -22,6 +23,18 @@ export default function VerifyResultScreen() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Editable checkup date — initialized from the passed-in date string
+  const parseDateString = (s: string): Date => {
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? new Date() : d;
+  };
+  const [checkupDate, setCheckupDate] = useState<Date>(() => parseDateString(date));
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const formattedDate = checkupDate.toLocaleDateString('en-US', {
+    month: 'short', day: '2-digit', year: 'numeric',
+  });
+
   const updateValue = (index: number, value: string) => {
     setEditableEntries(prev => prev.map((e, i) => i === index ? {...e, value} : e));
   };
@@ -32,14 +45,7 @@ export default function VerifyResultScreen() {
   const detectionRatio = totalCount > 0 ? detectedCount / totalCount : 1;
   const isLowConfidence = isOCR && detectionRatio < 0.5;
 
-  // Parse the date string back to a Date object for the DB
-  const parseDateString = (s: string): Date => {
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? new Date() : d;
-  };
-
   const handleProceed = async () => {
-    // Filter to only filled entries
     const filled = editableEntries.filter(e => e.value.trim() !== '');
     if (filled.length === 0) {
       Alert.alert('No values', 'Please enter at least one test result before saving.');
@@ -50,7 +56,7 @@ export default function VerifyResultScreen() {
     try {
       await addCheckupReport({
         categoryId,
-        checkupDate: parseDateString(date),
+        checkupDate,     // use the editable state, not the raw param string
         results: filled.map(e => ({
           testName: e.fieldName,
           unit: e.unit ?? '',
@@ -59,7 +65,6 @@ export default function VerifyResultScreen() {
           status: computeStatus(e.value.trim(), (e as any).normalRange ?? ''),
         })),
       });
-      // Pass the saved categoryId back so CheckupScreen can auto-select it
       navigation.navigate('ReportsMain', {savedCategoryId: categoryId} as any);
     } catch (err) {
       Alert.alert('Error', 'Failed to save results. Please try again.');
@@ -108,12 +113,28 @@ export default function VerifyResultScreen() {
           <Text className="text-gray-800 font-bold text-base">{categoryLabel}</Text>
         </View>
 
-        {/* Date */}
+        {/* Date — tappable to change */}
         <Text className="text-gray-700 text-sm font-medium mb-2">Date</Text>
-        <View className="flex-row items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 mb-4">
+        <TouchableOpacity
+          onPress={() => setShowDatePicker(true)}
+          className="flex-row items-center gap-2 border border-gray-200 rounded-xl px-4 py-3 mb-4">
           <Text className="text-gray-400">📅</Text>
-          <Text className="text-gray-700 text-sm font-medium">{date}</Text>
-        </View>
+          <Text className="text-gray-700 text-sm font-medium flex-1">{formattedDate}</Text>
+          <Text className="text-teal-500 text-xs font-medium">Change</Text>
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={checkupDate}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={new Date()}
+            onChange={(_, selected) => {
+              setShowDatePicker(false);
+              if (selected) setCheckupDate(selected);
+            }}
+          />
+        )}
 
         {/* OCR detection summary */}
         {isOCR && (
