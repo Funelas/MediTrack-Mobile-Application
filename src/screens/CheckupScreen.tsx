@@ -326,7 +326,15 @@ export default function CheckupScreen() {
                   {selectedCategory?.label ?? 'Select category'}
                 </Text>
               </View>
-              <Text className="text-gray-400">{showCategoryDropdown ? '▲' : '▼'}</Text>
+              <View className="flex-row items-center gap-2">
+                {selectedCategory && !BUILT_IN_CATEGORIES.find(c => c.id === selectedCategory.id) && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('CreateCategory', {categoryId: selectedCategory.id})}>
+                    <Text className="text-teal-500 text-xs font-medium">Edit</Text>
+                  </TouchableOpacity>
+                )}
+                <Text className="text-gray-400">{showCategoryDropdown ? '▲' : '▼'}</Text>
+              </View>
             </TouchableOpacity>
 
             {showCategoryDropdown && (

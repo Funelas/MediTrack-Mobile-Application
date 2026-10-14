@@ -39,6 +39,7 @@ notifee.onForegroundEvent(async ({type, detail}) => {
     await notifee.cancelNotification(detail.notification!.id!);
     await notifee.createTriggerNotification(
       {
+        id: detail.notification!.id,
         title: detail.notification!.title,
         body: detail.notification!.body,
         android: detail.notification!.android!,
@@ -46,7 +47,7 @@ notifee.onForegroundEvent(async ({type, detail}) => {
       },
       {
         type: TriggerType.TIMESTAMP,
-        timestamp: Date.now() + 10 * 60 * 1000, // 10 mins
+        timestamp: Date.now() + 10 * 60 * 1000,
         alarmManager: {allowWhileIdle: true},
       },
     );
@@ -80,6 +81,7 @@ notifee.onBackgroundEvent(async ({type, detail}) => {
     await notifee.cancelNotification(detail.notification!.id!);
     await notifee.createTriggerNotification(
       {
+        id: detail.notification!.id,
         title: detail.notification!.title,
         body: detail.notification!.body,
         android: detail.notification!.android!,

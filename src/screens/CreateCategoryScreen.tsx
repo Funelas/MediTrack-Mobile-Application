@@ -1,16 +1,18 @@
-import React, {useState, useRef} from 'react';
+import React, {useState, useRef, useEffect} from 'react';
 import {
   View, Text, SafeAreaView, TouchableOpacity,
   TextInput, ScrollView, Switch, Modal,
-  PanResponder, Animated, Platform, UIManager,
+  PanResponder, Animated, Platform, UIManager, ActivityIndicator,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)
   UIManager.setLayoutAnimationEnabledExperimental(false);
 
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
-import {addCategory} from '../database/services';
+import {addCategory, updateCategory} from '../database/services';
+import {database} from '../database';
+import Category from '../database/models/Category';
 import {Alert} from 'react-native';
 
 // --- Types ---
@@ -24,6 +26,7 @@ interface Field {
   referenceFrom?: string;
   referenceTo?: string;
   allowNote: boolean;
+  aliases?: string[]; // alternative names for OCR matching
 }
 
 // --- Constants ---
@@ -38,11 +41,12 @@ const ICON_OPTIONS: CategoryIconKey[] = [
   'flask', 'heart-beat-line',
 ];
 
-// --- Add Field Modal ---
-function AddFieldModal({visible, onClose, onAdd}: {
+// --- Add/Edit Field Modal ---
+function AddFieldModal({visible, onClose, onAdd, editField}: {
   visible: boolean;
   onClose: () => void;
   onAdd: (field: Field) => void;
+  editField?: Field | null;
 }) {
   const [name, setName] = useState('');
   const [type, setType] = useState<FieldType>('numerical');
@@ -50,25 +54,53 @@ function AddFieldModal({visible, onClose, onAdd}: {
   const [refFrom, setRefFrom] = useState('');
   const [refTo, setRefTo] = useState('');
   const [allowNote, setAllowNote] = useState(false);
+  const [aliasInput, setAliasInput] = useState('');
+  const [aliases, setAliases] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (editField) {
+      setName(editField.name);
+      setType(editField.type);
+      setUnit(editField.unit ?? '');
+      setRefFrom(editField.referenceFrom ?? '');
+      setRefTo(editField.referenceTo ?? '');
+      setAllowNote(editField.allowNote);
+      setAliases(editField.aliases ?? []);
+      setAliasInput('');
+    } else {
+      reset();
+    }
+  }, [editField, visible]);
 
   const reset = () => {
     setName(''); setType('numerical'); setUnit('');
     setRefFrom(''); setRefTo(''); setAllowNote(false);
+    setAliasInput(''); setAliases([]);
+  };
+
+  const handleAddAlias = () => {
+    const trimmed = aliasInput.trim();
+    if (!trimmed || aliases.includes(trimmed)) return;
+    setAliases(prev => [...prev, trimmed]);
+    setAliasInput('');
   };
 
   const handleAdd = () => {
     if (!name.trim()) return;
     onAdd({
-      id: Date.now().toString(),
+      id: editField ? editField.id : Date.now().toString(),
       name: name.trim(), type,
       unit: unit.trim() || undefined,
       referenceFrom: refFrom.trim() || undefined,
       referenceTo: refTo.trim() || undefined,
       allowNote,
+      aliases: aliases.length > 0 ? aliases : undefined,
     });
     reset();
     onClose();
   };
+
+  const isEditing = !!editField;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -78,7 +110,7 @@ function AddFieldModal({visible, onClose, onAdd}: {
         style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
           <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8">
-            <Text className="text-gray-800 font-bold text-base mb-4">Add Fields</Text>
+            <Text className="text-gray-800 font-bold text-base mb-4">{isEditing ? 'Edit Field' : 'Add Field'}</Text>
 
             <Text className="text-gray-700 text-sm font-medium mb-1">Fields Name</Text>
             <Text className="text-gray-400 text-xs mb-2">Enter the name of this field</Text>
@@ -141,6 +173,38 @@ function AddFieldModal({visible, onClose, onAdd}: {
               </>
             )}
 
+            <Text className="text-gray-700 text-sm font-medium mb-1">Alternative Names <Text className="text-gray-400 font-normal">(Optional)</Text></Text>
+            <Text className="text-gray-400 text-xs mb-2">Add other names this field may appear as on lab reports (e.g. "Red Blood Cell" for RBC)</Text>
+            <View className="flex-row gap-2 mb-2">
+              <TextInput
+                value={aliasInput}
+                onChangeText={setAliasInput}
+                onSubmitEditing={handleAddAlias}
+                placeholder="e.g. Red Blood Cell"
+                placeholderTextColor="#9ca3af"
+                returnKeyType="done"
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm"
+              />
+              <TouchableOpacity
+                onPress={handleAddAlias}
+                className="bg-teal-500 rounded-xl px-4 items-center justify-center">
+                <Text className="text-white text-sm font-semibold">Add</Text>
+              </TouchableOpacity>
+            </View>
+            {aliases.length > 0 && (
+              <View className="flex-row flex-wrap gap-2 mb-4">
+                {aliases.map(alias => (
+                  <TouchableOpacity
+                    key={alias}
+                    onPress={() => setAliases(prev => prev.filter(a => a !== alias))}
+                    className="flex-row items-center gap-1 bg-teal-50 border border-teal-200 rounded-full px-3 py-1">
+                    <Text className="text-teal-700 text-xs">{alias}</Text>
+                    <Text className="text-teal-400 text-xs">✕</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
             <View className="flex-row items-center justify-between mb-5">
               <View className="flex-1">
                 <Text className="text-gray-700 text-sm font-medium">Allow additional note <Text className="text-gray-400 font-normal">(Optional)</Text></Text>
@@ -155,7 +219,7 @@ function AddFieldModal({visible, onClose, onAdd}: {
             </View>
 
             <TouchableOpacity onPress={handleAdd} className="bg-teal-500 rounded-2xl py-4 items-center">
-              <Text className="text-white font-semibold text-base">Add Field</Text>
+              <Text className="text-white font-semibold text-base">{isEditing ? 'Save Field' : 'Add Field'}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -167,34 +231,47 @@ function AddFieldModal({visible, onClose, onAdd}: {
 // --- Draggable Field List ---
 const ROW_HEIGHT = 72;
 
-function FieldRow({field, dotColor = '#9ca3af', borderColor = '#E5E7EB', bgColor = '#ffffff'}: {
+function FieldRow({field, dotColor = '#9ca3af', borderColor = '#E5E7EB', bgColor = '#ffffff', onEdit, panHandlers}: {
   field: Field; dotColor?: string; borderColor?: string; bgColor?: string;
+  onEdit?: (field: Field) => void;
+  panHandlers?: any;
 }) {
   return (
     <View
-      className="flex-row items-center rounded-2xl px-4 py-4 gap-3 border"
+      className="flex-row items-center rounded-2xl px-2 py-4 gap-x-3 border"
       style={{backgroundColor: bgColor, borderColor}}>
-      <View className="gap-1">
-        {[0, 1, 2].map(r => (
-          <View key={r} className="flex-row gap-1">
-            {[0, 1].map(c => (
-              <View key={c} style={{width: 5, height: 5, borderRadius: 3, backgroundColor: dotColor}} />
-            ))}
-          </View>
-        ))}
+      {/* drag handle only — pan responder attached here */}
+      <View {...panHandlers} className="p-2">
+        <View className="gap-1">
+          {[0, 1, 2].map(r => (
+            <View key={r} className="flex-row gap-1">
+              {[0, 1].map(c => (
+                <View key={c} style={{width: 5, height: 5, borderRadius: 3, backgroundColor: dotColor}} />
+              ))}
+            </View>
+          ))}
+        </View>
       </View>
-      <View className="flex-1">
-        <Text className="text-gray-800 text-sm font-semibold">{field.name}</Text>
-        <Text className="text-gray-400 text-xs mt-0.5">
-          {field.type === 'numerical' ? `Numerical${field.unit ? ` · ${field.unit}` : ''}` : 'Description'}
-        </Text>
-      </View>
-      <Text className="text-gray-400 text-lg">›</Text>
+      {/* tappable content area */}
+      <TouchableOpacity className="flex-1 flex-row items-center" onPress={() => onEdit?.(field)} activeOpacity={onEdit ? 0.7 : 1}>
+        <View className="flex-1">
+          <Text className="text-gray-800 text-sm font-semibold">{field.name}</Text>
+          <Text className="text-gray-400 text-xs mt-0.5">
+            {field.type === 'numerical' ? `Numerical${field.unit ? ` · ${field.unit}` : ''}` : 'Description'}
+            {field.aliases && field.aliases.length > 0 ? ` · ${field.aliases.length} alias${field.aliases.length > 1 ? 'es' : ''}` : ''}
+          </Text>
+        </View>
+        <Text className="text-gray-400 text-lg">{onEdit ? '✎' : '›'}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f: Field[]) => void}) {
+function DraggableFieldList({fields, setFields, onEdit}: {
+  fields: Field[];
+  setFields: (f: Field[]) => void;
+  onEdit?: (field: Field) => void;
+}) {
   const fieldsRef = useRef(fields);
   const setFieldsRef = useRef(setFields);
   fieldsRef.current = fields;
@@ -271,7 +348,7 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
         const showGhostAfter = ghostIndex === index && activeIndex !== null && ghostIndex > activeIndex!;
 
         return (
-          <View key={field.id}>
+            <View key={field.id} style={{marginBottom: 8}}>
             {showGhostBefore && (
               <View style={{
                 height: ROW_HEIGHT - 8, marginBottom: 8,
@@ -279,8 +356,12 @@ function DraggableFieldList({fields, setFields}: {fields: Field[]; setFields: (f
                 borderColor: '#14B8A6', backgroundColor: '#F0FDFA',
               }} />
             )}
-            <View style={{marginBottom: 8, opacity: isActive ? 0 : 1, height: isActive ? 0 : undefined, overflow: 'hidden'}} {...pr.panHandlers}>
-              <FieldRow field={field} />
+            <View style={{opacity: isActive ? 0 : 1, height: isActive ? 0 : undefined}}>
+              <FieldRow
+                field={field}
+                onEdit={onEdit}
+                panHandlers={pr.panHandlers}
+              />
             </View>
             {showGhostAfter && (
               <View style={{
@@ -382,6 +463,20 @@ function StepFields({fields, setFields, onContinue}: {
   fields: Field[]; setFields: (f: Field[]) => void; onContinue: () => void;
 }) {
   const [showModal, setShowModal] = useState(false);
+  const [editingField, setEditingField] = useState<Field | null>(null);
+
+  const handleEdit = (field: Field) => {
+    setEditingField(field);
+    setShowModal(true);
+  };
+
+  const handleSave = (updated: Field) => {
+    if (editingField) {
+      setFields(fields.map(f => f.id === updated.id ? updated : f));
+    } else {
+      setFields([...fields, updated]);
+    }
+  };
 
   return (
     <View className="flex-1 px-4">
@@ -389,11 +484,11 @@ function StepFields({fields, setFields, onContinue}: {
       <Text className="text-gray-400 text-xs mb-4">These will be used to record your results{'\n'}e.g (RBC, WBC, Magnesium)</Text>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        <DraggableFieldList fields={fields} setFields={setFields} />
+        <DraggableFieldList fields={fields} setFields={setFields} onEdit={handleEdit} />
 
         <TouchableOpacity
-          onPress={() => setShowModal(true)}
-          className="flex-row items-center justify-center gap-2 border border-gray-200 rounded-2xl py-4 mb-4">
+          onPress={() => { setEditingField(null); setShowModal(true); }}
+          className="flex-row items-center justify-center gap-x-2 border border-gray-200 rounded-2xl py-4 mb-4">
           <Text className="text-teal-500 text-lg font-bold">+</Text>
           <Text className="text-teal-500 text-sm font-semibold">Add Field</Text>
         </TouchableOpacity>
@@ -409,8 +504,9 @@ function StepFields({fields, setFields, onContinue}: {
 
       <AddFieldModal
         visible={showModal}
-        onClose={() => setShowModal(false)}
-        onAdd={field => setFields([...fields, field])}
+        editField={editingField}
+        onClose={() => { setShowModal(false); setEditingField(null); }}
+        onAdd={handleSave}
       />
     </View>
   );
@@ -456,13 +552,42 @@ function StepReview({categoryData, fields, onContinue}: {
 // --- Main Screen ---
 export default function CreateCategoryScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const editCategoryId = route.params?.categoryId as string | undefined;
+  const isEditing = !!editCategoryId;
+
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [loading, setLoading] = useState(isEditing);
+  const [existingCategory, setExistingCategory] = useState<Category | null>(null);
   const [categoryData, setCategoryData] = useState({
     name: '', icon: 'flask' as CategoryIconKey, color: '#14B8A6',
   });
   const [fields, setFields] = useState<Field[]>([]);
 
-  const stepTitle = step === 1 ? 'Create Category' : step === 2 ? 'Add Fields' : 'Review Category';
+  useEffect(() => {
+    if (!editCategoryId) return;
+    database.get<Category>('categories').find(editCategoryId).then(cat => {
+      setExistingCategory(cat);
+      setCategoryData({name: cat.label, icon: cat.icon as CategoryIconKey, color: cat.color});
+      const parsed = cat.parsedFields.map((f: any, i: number) => ({
+        id: String(i),
+        name: f.name,
+        type: (f.type === 'descriptive' ? 'description' : 'numerical') as FieldType,
+        unit: f.unit || undefined,
+        referenceFrom: f.normalRange ? f.normalRange.split('-')[0] : undefined,
+        referenceTo: f.normalRange ? f.normalRange.split('-')[1] : undefined,
+        allowNote: f.allowNote ?? false,
+        aliases: f.aliases ?? [],
+      }));
+      setFields(parsed);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [editCategoryId]);
+
+  const stepTitle = step === 1
+    ? (isEditing ? 'Edit Category' : 'Create Category')
+    : step === 2 ? 'Edit Fields'
+    : 'Review Category';
 
   const handleBack = () => {
     if (step === 1) navigation.goBack();
@@ -476,7 +601,6 @@ export default function CreateCategoryScreen() {
       return;
     }
     try {
-      // Map Field[] → CategoryField[] shape expected by the DB
       const categoryFields = fields.map(f => ({
         name: f.name,
         unit: f.unit ?? '',
@@ -485,18 +609,36 @@ export default function CreateCategoryScreen() {
           : '',
         required: false,
         type: f.type === 'description' ? 'descriptive' : 'numerical',
+        aliases: f.aliases ?? [],
       }));
-      await addCategory({
-        label: categoryData.name.trim(),
-        icon: categoryData.icon,
-        color: categoryData.color,
-        fields: JSON.stringify(categoryFields),
-      });
+      if (isEditing && existingCategory) {
+        await updateCategory(existingCategory, {
+          label: categoryData.name.trim(),
+          icon: categoryData.icon,
+          color: categoryData.color,
+          fields: JSON.stringify(categoryFields),
+        });
+      } else {
+        await addCategory({
+          label: categoryData.name.trim(),
+          icon: categoryData.icon,
+          color: categoryData.color,
+          fields: JSON.stringify(categoryFields),
+        });
+      }
       navigation.goBack();
     } catch {
       Alert.alert('Error', 'Failed to save category. Please try again.');
     }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-white items-center justify-center">
+        <ActivityIndicator color="#14B8A6" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-white">

@@ -700,6 +700,23 @@ export const addCategory = async (data: {
   });
 };
 
+export const updateCategory = async (category: Category, data: {
+  label: string;
+  icon: string;
+  color: string;
+  fields: string;
+}) => {
+  return database.write(async () => {
+    return category.update(c => {
+      c.label = data.label;
+      c.icon = data.icon;
+      c.color = data.color;
+      c.fields = data.fields;
+      (c as any)._raw.updated_at = Date.now();
+    });
+  });
+};
+
 export const deleteCategory = async (category: Category) => {
   return database.write(async () => {
     return category.markAsDeleted();

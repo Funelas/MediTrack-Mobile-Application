@@ -56,7 +56,9 @@ export default function InputMethodScreen() {
     setLoading(true);
     try {
       const rawText = await recognizeText(imageUri);
-      const fields = CATEGORY_FIELDS[categoryId] ?? [];
+      const fields = (params as any).fields
+        ? JSON.parse((params as any).fields)
+        : (CATEGORY_FIELDS[categoryId] ?? []);
       const entries = parseOCRText(rawText, fields);
       navigation.navigate('VerifyResult', {
         categoryId,
