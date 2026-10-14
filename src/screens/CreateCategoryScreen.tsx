@@ -479,24 +479,28 @@ function StepFields({fields, setFields, onContinue}: {
   };
 
   return (
-    <View className="flex-1 px-4">
-      <Text className="text-gray-800 font-bold text-sm mt-4 mb-1">Fields</Text>
-      <Text className="text-gray-400 text-xs mb-4">These will be used to record your results{'\n'}e.g (RBC, WBC, Magnesium)</Text>
+    <View className="flex-1">
+      <View className="px-4">
+        <Text className="text-gray-800 font-bold text-sm mt-4 mb-1">Fields</Text>
+        <Text className="text-gray-400 text-xs mb-4">These will be used to record your results{'\n'}e.g (RBC, WBC, Magnesium)</Text>
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        <DraggableFieldList fields={fields} setFields={setFields} onEdit={handleEdit} />
+        <View className="px-5">
+          <DraggableFieldList fields={fields} setFields={setFields} onEdit={handleEdit} />
 
-        <TouchableOpacity
-          onPress={() => { setEditingField(null); setShowModal(true); }}
-          className="flex-row items-center justify-center gap-x-2 border border-gray-200 rounded-2xl py-4 mb-4">
-          <Text className="text-teal-500 text-lg font-bold">+</Text>
-          <Text className="text-teal-500 text-sm font-semibold">Add Field</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => { setEditingField(null); setShowModal(true); }}
+            className="flex-row items-center justify-center gap-x-2 border border-gray-200 rounded-2xl py-4 mb-4">
+            <Text className="text-teal-500 text-lg font-bold">+</Text>
+            <Text className="text-teal-500 text-sm font-semibold">Add Field</Text>
+          </TouchableOpacity>
 
-        <View className="h-24" />
+          <View className="h-24" />
+        </View>
       </ScrollView>
 
-      <View className="py-4 border-t border-gray-100">
+      <View className="px-4 py-4 border-t border-gray-100">
         <TouchableOpacity onPress={onContinue} className="bg-teal-500 rounded-2xl py-4 items-center">
           <Text className="text-white font-semibold text-base">Continue</Text>
         </TouchableOpacity>
@@ -517,30 +521,32 @@ function StepReview({categoryData, fields, onContinue}: {
   categoryData: any; fields: Field[]; onContinue: () => void;
 }) {
   return (
-    <View className="flex-1 px-4">
+    <View className="flex-1">
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        <View className="bg-white border border-gray-200 rounded-2xl px-4 py-4 mt-4 mb-5 flex-row items-center gap-3">
-          <View
-            className="w-12 h-12 rounded-2xl items-center justify-center"
-            style={{backgroundColor: categoryData.color + '22'}}>
-            <CategoryIcon iconKey={categoryData.icon} size={26} color={categoryData.color} />
-          </View>
-          <View className="flex-1">
-            <Text className="text-gray-800 font-bold text-sm">{categoryData.name || 'Unnamed Category'}</Text>
-            <View className="flex-row items-center gap-2 mt-1">
-              <Text className="text-gray-400 text-xs">Category Color:</Text>
-              <View className="w-4 h-4 rounded-full" style={{backgroundColor: categoryData.color}} />
+        <View className="px-5">
+          <View className="bg-white border border-gray-200 rounded-2xl px-4 py-4 mt-4 mb-5 flex-row items-center gap-x-3">
+            <View
+              className="w-12 h-12 rounded-2xl items-center justify-center"
+              style={{backgroundColor: categoryData.color + '22'}}>
+              <CategoryIcon iconKey={categoryData.icon} size={26} color={categoryData.color} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-gray-800 font-bold text-sm">{categoryData.name || 'Unnamed Category'}</Text>
+              <View className="flex-row items-center gap-x-2 mt-1">
+                <Text className="text-gray-400 text-xs">Category Color:</Text>
+                <View className="w-4 h-4 rounded-full" style={{backgroundColor: categoryData.color}} />
+              </View>
             </View>
           </View>
-        </View>
 
-        <Text className="text-gray-800 font-bold text-sm mb-1">Fields ({fields.length})</Text>
-        <Text className="text-gray-400 text-xs mb-3">The following are the fields you plan to add under this category.</Text>
-        <DraggableFieldList fields={fields} setFields={() => {}} />
-        <View className="h-24" />
+          <Text className="text-gray-800 font-bold text-sm mb-1">Fields ({fields.length})</Text>
+          <Text className="text-gray-400 text-xs mb-3">The following are the fields you plan to add under this category.</Text>
+          <DraggableFieldList fields={fields} setFields={() => {}} />
+          <View className="h-24" />
+        </View>
       </ScrollView>
 
-      <View className="py-4 border-t border-gray-100">
+      <View className="px-4 py-4 border-t border-gray-100">
         <TouchableOpacity onPress={onContinue} className="bg-teal-500 rounded-2xl py-4 items-center">
           <Text className="text-white font-semibold text-base">Continue</Text>
         </TouchableOpacity>
