@@ -9,9 +9,9 @@ import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
 import {CategoryIcon, CategoryIconKey} from '../components/CategoryIconPickerModal';
 import {getCategories} from '../database/services';
-import {BUILT_IN_CATEGORIES} from '../data/categoryDefinitions';
 import Category from '../database/models/Category';
 import Search from '../assets/svg_icons/magnifying-glass.svg';
+import Pencil from '../assets/svg_icons/pencil.svg';
 
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
 
@@ -34,13 +34,10 @@ export default function AddCheckupReportScreen() {
       const load = async () => {
         setLoading(true);
         const userCats = await getCategories();
-        const builtIn: DisplayCategory[] = BUILT_IN_CATEGORIES.map(c => ({
-          id: c.id, label: c.label, icon: c.icon, color: '#14B8A6',
-        }));
         const userDisplay: DisplayCategory[] = userCats.map(c => ({
           id: c.id, label: c.label, icon: c.icon, color: c.color, fields: c.fields,
         }));
-        setAllCategories([...builtIn, ...userDisplay]);
+        setAllCategories(userDisplay);
         setLoading(false);
       };
       load();
@@ -114,24 +111,27 @@ export default function AddCheckupReportScreen() {
           ) : (
             <View className="gap-2">
               {filtered.map(cat => (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => handleSelect(cat)}
-                  className="flex-row items-center justify-between bg-white border border-gray-200 rounded-2xl px-4 py-4">
-                  <View className="flex-row items-center gap-3">
-                    <View
-                      className="w-9 h-9 rounded-xl items-center justify-center"
-                      style={{backgroundColor: cat.color + '22'}}>
-                      <CategoryIcon
-                        iconKey={cat.icon as CategoryIconKey}
-                        size={20}
-                        color={cat.color}
-                      />
-                    </View>
-                    <Text className="text-gray-800 text-sm font-medium">{cat.label}</Text>
+                  <View key={cat.id} className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-2 py-4 gap-x-3">
+                    <TouchableOpacity
+                      className="flex-1 flex-row items-center gap-3"
+                      onPress={() => handleSelect(cat)}>
+                      <View
+                        className="w-9 h-9 rounded-xl items-center justify-center"
+                        style={{backgroundColor: cat.color + '22'}}>
+                        <CategoryIcon
+                          iconKey={cat.icon as CategoryIconKey}
+                          size={20}
+                          color={cat.color}
+                        />
+                      </View>
+                      <Text className="flex-1 text-gray-800 text-sm font-medium">{cat.label}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => navigation.navigate('CreateCategory', {categoryId: cat.id} as any)}
+                      className="px-2 py-1">
+                      <Pencil width={16} height={16} color="#14B8A6" />
+                    </TouchableOpacity>
                   </View>
-                  <Text className="text-gray-400 text-lg">›</Text>
-                </TouchableOpacity>
               ))}
             </View>
           )}

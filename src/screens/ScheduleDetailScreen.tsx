@@ -9,6 +9,7 @@ import {ScheduleStackParamList} from '../navigation/ScheduleStackNavigator';
 import Bell from '../assets/svg_icons/bell.svg';
 import Calendar from '../assets/svg_icons/calendar.svg';
 import Clock from '../assets/svg_icons/clock.svg';
+import Pencil from '../assets/svg_icons/pencil.svg';
 import Check from '../assets/svg_icons/check.svg';
 import {database} from '../database';
 import Task from '../database/models/Task';
@@ -240,7 +241,7 @@ export default function ScheduleDetailScreen() {
           <TouchableOpacity
             onPress={() => repeating ? setShowEditModal(true) : handleEditScope('all')}
             className="p-2">
-            <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
+            <Pencil width={18} height={18} color="#14B8A6" />
           </TouchableOpacity>
         </View>
       </View>

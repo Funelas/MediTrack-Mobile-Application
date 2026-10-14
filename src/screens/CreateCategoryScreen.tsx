@@ -398,6 +398,163 @@ function DraggableFieldList({fields, setFields, onEdit}: {
   );
 }
 
+// --- Presets ---
+
+interface Preset {
+  id: string;
+  label: string;
+  description: string;
+  icon: CategoryIconKey;
+  color: string;
+  fields: Field[];
+}
+
+const PRESETS: Preset[] = [
+  {
+    id: 'magic10',
+    label: 'Magic 10',
+    description: '10 core blood chemistry tests for a standard annual checkup',
+    icon: 'flask',
+    color: '#14B8A6',
+    fields: [
+      {id: 'p1',  name: 'FBS',           type: 'numerical', unit: 'mg/dL',    referenceFrom: '70',  referenceTo: '100',  allowNote: false},
+      {id: 'p2',  name: 'HbA1C',         type: 'numerical', unit: '%',         referenceFrom: '4.0', referenceTo: '5.6',  allowNote: false},
+      {id: 'p3',  name: 'Total Cholesterol', type: 'numerical', unit: 'mg/dL', referenceFrom: '0',   referenceTo: '200',  allowNote: false},
+      {id: 'p4',  name: 'HDL',           type: 'numerical', unit: 'mg/dL',    referenceFrom: '40',  referenceTo: '999',  allowNote: false},
+      {id: 'p5',  name: 'LDL',           type: 'numerical', unit: 'mg/dL',    referenceFrom: '0',   referenceTo: '100',  allowNote: false},
+      {id: 'p6',  name: 'Triglycerides', type: 'numerical', unit: 'mg/dL',    referenceFrom: '0',   referenceTo: '150',  allowNote: false},
+      {id: 'p7',  name: 'Creatinine',    type: 'numerical', unit: 'mg/dL',    referenceFrom: '0.6', referenceTo: '1.2',  allowNote: false},
+      {id: 'p8',  name: 'BUN',           type: 'numerical', unit: 'mg/dL',    referenceFrom: '7',   referenceTo: '20',   allowNote: false},
+      {id: 'p9',  name: 'SGPT (ALT)',    type: 'numerical', unit: 'U/L',      referenceFrom: '7',   referenceTo: '56',   allowNote: false},
+      {id: 'p10', name: 'SGOT (AST)',    type: 'numerical', unit: 'U/L',      referenceFrom: '10',  referenceTo: '40',   allowNote: false},
+    ],
+  },
+  {
+    id: 'magic12',
+    label: 'Magic 12',
+    description: '12-panel test including CBC markers for a comprehensive checkup',
+    icon: 'cell',
+    color: '#3B82F6',
+    fields: [
+      {id: 'q1',  name: 'FBS',           type: 'numerical', unit: 'mg/dL',      referenceFrom: '70',  referenceTo: '100',  allowNote: false},
+      {id: 'q2',  name: 'HbA1C',         type: 'numerical', unit: '%',           referenceFrom: '4.0', referenceTo: '5.6',  allowNote: false},
+      {id: 'q3',  name: 'Total Cholesterol', type: 'numerical', unit: 'mg/dL',  referenceFrom: '0',   referenceTo: '200',  allowNote: false},
+      {id: 'q4',  name: 'HDL',           type: 'numerical', unit: 'mg/dL',      referenceFrom: '40',  referenceTo: '999',  allowNote: false},
+      {id: 'q5',  name: 'LDL',           type: 'numerical', unit: 'mg/dL',      referenceFrom: '0',   referenceTo: '100',  allowNote: false},
+      {id: 'q6',  name: 'Triglycerides', type: 'numerical', unit: 'mg/dL',      referenceFrom: '0',   referenceTo: '150',  allowNote: false},
+      {id: 'q7',  name: 'Creatinine',    type: 'numerical', unit: 'mg/dL',      referenceFrom: '0.6', referenceTo: '1.2',  allowNote: false},
+      {id: 'q8',  name: 'BUN',           type: 'numerical', unit: 'mg/dL',      referenceFrom: '7',   referenceTo: '20',   allowNote: false},
+      {id: 'q9',  name: 'SGPT (ALT)',    type: 'numerical', unit: 'U/L',        referenceFrom: '7',   referenceTo: '56',   allowNote: false},
+      {id: 'q10', name: 'SGOT (AST)',    type: 'numerical', unit: 'U/L',        referenceFrom: '10',  referenceTo: '40',   allowNote: false},
+      {id: 'q11', name: 'WBC',           type: 'numerical', unit: 'x10³/µL',    referenceFrom: '4.5', referenceTo: '11.0', allowNote: false},
+      {id: 'q12', name: 'RBC',           type: 'numerical', unit: 'x10⁶/µL',    referenceFrom: '4.5', referenceTo: '5.5',  allowNote: false},
+    ],
+  },
+];
+
+// --- Step 0: Preset Picker ---
+function StepPreset({onSelect, onSkip}: {
+  onSelect: (preset: Preset) => void;
+  onSkip: () => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4">
+      {/* Header text */}
+      <View className="items-center mt-6 mb-6">
+        <Text className="text-gray-800 font-bold text-lg text-center">
+          Start with a template
+        </Text>
+        <Text className="text-gray-400 text-sm mt-1 text-center">
+          Pick a preset to auto-fill the fields, or start from scratch.
+        </Text>
+      </View>
+
+      {/* Preset cards */}
+      {PRESETS.map(preset => {
+        const isSelected = selected === preset.id;
+        return (
+          <TouchableOpacity
+            key={preset.id}
+            onPress={() => setSelected(isSelected ? null : preset.id)}
+            activeOpacity={0.8}
+            className="rounded-2xl border-2 p-4 mb-3"
+            style={{
+              borderColor: isSelected ? preset.color : '#E5E7EB',
+              backgroundColor: isSelected ? preset.color + '11' : '#ffffff',
+            }}>
+            <View className="flex-row items-center gap-3 mb-3">
+              {/* Icon bubble */}
+              <View
+                className="w-12 h-12 rounded-xl items-center justify-center"
+                style={{backgroundColor: preset.color + '22'}}>
+                <CategoryIcon iconKey={preset.icon} size={24} color={preset.color} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-800 font-bold text-sm">{preset.label}</Text>
+                <Text className="text-gray-400 text-xs mt-0.5">{preset.description}</Text>
+              </View>
+              {/* Selection indicator */}
+              <View
+                className="w-6 h-6 rounded-full border-2 items-center justify-center"
+                style={{borderColor: isSelected ? preset.color : '#D1D5DB'}}>
+                {isSelected && (
+                  <View
+                    className="w-3 h-3 rounded-full"
+                    style={{backgroundColor: preset.color}}
+                  />
+                )}
+              </View>
+            </View>
+
+            {/* Field preview pills */}
+            <View className="flex-row flex-wrap gap-1.5">
+              {preset.fields.map(f => (
+                <View
+                  key={f.id}
+                  className="rounded-full px-2.5 py-1"
+                  style={{backgroundColor: preset.color + '18'}}>
+                  <Text className="text-xs font-medium" style={{color: preset.color}}>
+                    {f.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+
+      {/* Use preset button */}
+      <TouchableOpacity
+        onPress={() => {
+          const preset = PRESETS.find(p => p.id === selected);
+          if (preset) onSelect(preset);
+        }}
+        disabled={!selected}
+        className="rounded-2xl py-4 items-center mb-3 mt-1"
+        style={{
+          backgroundColor: selected ? '#14B8A6' : '#E5E7EB',
+        }}>
+        <Text
+          className="font-semibold text-base"
+          style={{color: selected ? '#ffffff' : '#9ca3af'}}>
+          Use This Template
+        </Text>
+      </TouchableOpacity>
+
+      {/* Skip / start from scratch */}
+      <TouchableOpacity
+        onPress={onSkip}
+        className="py-4 items-center mb-8">
+        <Text className="text-gray-400 text-sm font-medium">
+          Start from scratch instead
+        </Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+}
+
 // --- Step 1: Create Category ---
 function StepCreate({data, setData, onContinue}: {
   data: any; setData: (d: any) => void; onContinue: () => void;
@@ -562,7 +719,7 @@ export default function CreateCategoryScreen() {
   const editCategoryId = route.params?.categoryId as string | undefined;
   const isEditing = !!editCategoryId;
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(isEditing ? 1 : 0);
   const [loading, setLoading] = useState(isEditing);
   const [existingCategory, setExistingCategory] = useState<Category | null>(null);
   const [categoryData, setCategoryData] = useState({
@@ -590,14 +747,18 @@ export default function CreateCategoryScreen() {
     }).catch(() => setLoading(false));
   }, [editCategoryId]);
 
-  const stepTitle = step === 1
+  const stepTitle = step === 0
+    ? 'New Category'
+    : step === 1
     ? (isEditing ? 'Edit Category' : 'Create Category')
     : step === 2 ? 'Edit Fields'
     : 'Review Category';
 
   const handleBack = () => {
-    if (step === 1) navigation.goBack();
-    else setStep((step - 1) as 1 | 2 | 3);
+    if (step === 0) navigation.goBack();
+    else if (step === 1 && !isEditing) setStep(0); // back to preset picker
+    else if (step === 1) navigation.goBack();
+    else setStep((step - 1) as 0 | 1 | 2 | 3);
   };
 
   const handleFinish = async () => {
@@ -657,6 +818,25 @@ export default function CreateCategoryScreen() {
         </Text>
       </View>
 
+      {step === 0 && (
+        <StepPreset
+          onSelect={preset => {
+            // Pre-fill from preset then jump to step 1 for review/tweaking
+            setCategoryData({
+              name: preset.label,
+              icon: preset.icon as CategoryIconKey,
+              color: preset.color,
+            });
+            setFields(preset.fields);
+            setStep(1);
+          }}
+          onSkip={() => {
+            setCategoryData({name: '', icon: 'flask' as CategoryIconKey, color: '#14B8A6'});
+            setFields([]);
+            setStep(1);
+          }}
+        />
+      )}
       {step === 1 && <StepCreate data={categoryData} setData={setCategoryData} onContinue={() => setStep(2)} />}
       {step === 2 && <StepFields fields={fields} setFields={setFields} onContinue={() => setStep(3)} />}
       {step === 3 && <StepReview categoryData={categoryData} fields={fields} onContinue={handleFinish} />}

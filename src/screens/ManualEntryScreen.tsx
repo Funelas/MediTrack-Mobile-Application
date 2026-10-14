@@ -7,7 +7,6 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
-import {getFieldsForCategory} from '../data/categoryDefinitions';
 import Calendar from '../assets/svg_icons/calendar.svg';
 
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
@@ -18,11 +17,10 @@ export default function ManualEntryScreen() {
   const {params} = useRoute<Route>();
   const {categoryId, categoryLabel, categoryIcon} = params;
 
-  // For built-in categories, use shared definitions.
-  // For user-created categories the fields arrive via params.fields (JSON).
+  // All categories now pass their fields as JSON through params
   const fields = (params as any).fields
     ? JSON.parse((params as any).fields)
-    : getFieldsForCategory(categoryId);
+    : [];
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [date, setDate] = useState(new Date());

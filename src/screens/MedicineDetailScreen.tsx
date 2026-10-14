@@ -8,6 +8,7 @@ import Clock from '../assets/svg_icons/clock.svg';
 import Bell from '../assets/svg_icons/bell.svg';
 import Stock from '../assets/svg_icons/stock.svg';
 import QR from '../assets/svg_icons/qr.svg';
+import Pencil from '../assets/svg_icons/pencil.svg';
 import {database} from '../database';
 import MedicineModel from '../database/models/Medicine';
 import {upsertOccurrence} from '../database/services';
@@ -127,7 +128,7 @@ export default function MedicineDetailScreen() {
         <TouchableOpacity
           onPress={() => navigation.navigate('EditMedicine', {id: med.id})}
           className="p-2">
-          <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
+          <Pencil width={18} height={18} color="#14B8A6" />
         </TouchableOpacity>
       </View>
 

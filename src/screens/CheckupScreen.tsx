@@ -18,7 +18,7 @@ import CheckupReport from '../database/models/CheckupReport';
 import TestResult from '../database/models/TestResult';
 import {database} from '../database';
 import {Q} from '@nozbe/watermelondb';
-import {BUILT_IN_CATEGORIES, getBuiltInCategory, computeStatus} from '../data/categoryDefinitions';
+import {computeStatus} from '../data/categoryDefinitions';
 import Category from '../database/models/Category';
 
 type Nav = NativeStackNavigationProp<ReportsStackParamList>;
@@ -185,15 +185,12 @@ export default function CheckupScreen() {
     const run = async () => {
       setLoading(true);
       try {
-        // Merge built-in + user-created categories
+        // Load only user-created categories
         const userCats = await getCategories();
-        const builtIn: DisplayCategory[] = BUILT_IN_CATEGORIES.map(c => ({
-          id: c.id, label: c.label, icon: c.icon, color: '#14B8A6',
-        }));
         const userDisplay: DisplayCategory[] = userCats.map(c => ({
           id: c.id, label: c.label, icon: c.icon, color: c.color,
         }));
-        const merged = [...builtIn, ...userDisplay];
+        const merged = [...userDisplay];
         setAllCategories(merged);
 
         // Use the latest selectedCategoryId from state, fall back to first category
@@ -327,12 +324,6 @@ export default function CheckupScreen() {
                 </Text>
               </View>
               <View className="flex-row items-center gap-2">
-                {selectedCategory && !BUILT_IN_CATEGORIES.find(c => c.id === selectedCategory.id) && (
-                  <TouchableOpacity
-                    onPress={() => navigation.navigate('CreateCategory', {categoryId: selectedCategory.id})}>
-                    <Text className="text-teal-500 text-xs font-medium">Edit</Text>
-                  </TouchableOpacity>
-                )}
                 <Text className="text-gray-400">{showCategoryDropdown ? '▲' : '▼'}</Text>
               </View>
             </TouchableOpacity>
