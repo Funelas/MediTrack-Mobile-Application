@@ -144,10 +144,15 @@ export async function setupNotifications() {
     }
   }
 
-  await notifee.createChannel({id: CHANNELS.MEDICATIONS, name: 'Medications', importance: AndroidImportance.HIGH});
-  await notifee.createChannel({id: CHANNELS.APPOINTMENTS, name: 'Appointments', importance: AndroidImportance.HIGH});
-  await notifee.createChannel({id: CHANNELS.REMINDERS, name: 'Reminders', importance: AndroidImportance.HIGH});
-  await notifee.createChannel({id: CHANNELS.LOW_STOCK, name: 'Low Stock Alerts', importance: AndroidImportance.DEFAULT});
+  await notifee.deleteChannel(CHANNELS.MEDICATIONS);
+  await notifee.deleteChannel(CHANNELS.APPOINTMENTS);
+  await notifee.deleteChannel(CHANNELS.REMINDERS);
+  await notifee.deleteChannel(CHANNELS.LOW_STOCK);
+
+  await notifee.createChannel({id: CHANNELS.MEDICATIONS, name: 'Medications', importance: AndroidImportance.HIGH, sound: 'notification_sound', vibration: false});
+  await notifee.createChannel({id: CHANNELS.APPOINTMENTS, name: 'Appointments', importance: AndroidImportance.HIGH, sound: 'notification_sound', vibration: false});
+  await notifee.createChannel({id: CHANNELS.REMINDERS, name: 'Reminders', importance: AndroidImportance.HIGH, sound: 'notification_sound', vibration: false});
+  await notifee.createChannel({id: CHANNELS.LOW_STOCK, name: 'Low Stock Alerts', importance: AndroidImportance.DEFAULT, sound: 'notification_sound', vibration: false});
 }
 
 function buildNotificationId(referenceId: string, date: Date, time: string, suffix = ''): string {
@@ -189,8 +194,23 @@ export async function scheduleNotificationsForRange(rangeStart: Date, rangeEnd: 
           id: buildNotificationId(item.referenceId, item.date, item.time),
           title: '💊 Time to take your medicine',
           body: `${item.title}${item.dosage ? ` · ${item.dosage}` : ''}`,
-          android: {channelId: CHANNELS.MEDICATIONS, pressAction: {id: 'default'}, smallIcon: 'ic_notification'},
-          data: {referenceId: item.referenceId, type: 'med'},
+          android: {
+            channelId: CHANNELS.MEDICATIONS,
+            pressAction: {id: 'default'},
+            smallIcon: 'ic_notification',
+            importance: AndroidImportance.HIGH,
+            fullScreenAction: {id: 'default'},
+            actions: [
+              {title: '✅ Mark as Done', pressAction: {id: 'mark-done'}},
+              {title: '⏰ Snooze 10 min', pressAction: {id: 'snooze'}},
+            ],
+          },
+          data: {
+            referenceId: item.referenceId,
+            type: 'med',
+            occurrenceDate: item.date.toISOString(),
+            occurrenceTime: item.time,
+          },
         },
         trigger,
       );
@@ -205,8 +225,23 @@ export async function scheduleNotificationsForRange(rangeStart: Date, rangeEnd: 
           id: buildNotificationId(item.referenceId, item.date, item.time),
           title: `${emoji} ${label}`,
           body: item.title,
-          android: {channelId, pressAction: {id: 'default'}, smallIcon: 'ic_notification'},
-          data: {referenceId: item.referenceId, type: item.type},
+          android: {
+            channelId,
+            pressAction: {id: 'default'},
+            smallIcon: 'ic_notification',
+            importance: AndroidImportance.HIGH,
+            fullScreenAction: {id: 'default'},
+            actions: [
+              {title: '✅ Mark as Done', pressAction: {id: 'mark-done'}},
+              {title: '⏰ Snooze 10 min', pressAction: {id: 'snooze'}},
+            ],
+          },
+          data: {
+            referenceId: item.referenceId,
+            type: item.type,
+            occurrenceDate: item.date.toISOString(),
+            occurrenceTime: item.time,
+          },
         },
         trigger,
       );
@@ -219,8 +254,22 @@ export async function scheduleNotificationsForRange(rangeStart: Date, rangeEnd: 
               id: buildNotificationId(item.referenceId, item.date, item.time, '-before'),
               title: `${emoji} Coming up: ${item.title}`,
               body: `In ${offsetMins < 60 ? `${offsetMins} minutes` : '1 hour'}`,
-              android: {channelId, pressAction: {id: 'default'}, smallIcon: 'ic_notification'},
-              data: {referenceId: item.referenceId, type: item.type},
+              android: {
+                channelId,
+                pressAction: {id: 'default'},
+                smallIcon: 'ic_notification',
+                importance: AndroidImportance.HIGH,
+                actions: [
+                  {title: '✅ Mark as Done', pressAction: {id: 'mark-done'}},
+                  {title: '⏰ Snooze 10 min', pressAction: {id: 'snooze'}},
+                ],
+              },
+              data: {
+                referenceId: item.referenceId,
+                type: item.type,
+                occurrenceDate: item.date.toISOString(),
+                occurrenceTime: item.time,
+              },
             },
             {
               type: TriggerType.TIMESTAMP,
@@ -242,8 +291,16 @@ export async function checkLowStockNotifications() {
       await notifee.displayNotification({
         title: '⚠️ Low Stock Alert',
         body: `${med.name} is running low — only ${med.currentStock} ${med.form}(s) left`,
-        android: {channelId: CHANNELS.LOW_STOCK, pressAction: {id: 'default'}, smallIcon: 'ic_notification'},
-        data: {referenceId: med.id, type: 'low-stock'},
+        android: {
+          channelId: CHANNELS.LOW_STOCK,
+          pressAction: {id: 'default'},
+          smallIcon: 'ic_notification',
+          importance: AndroidImportance.HIGH,
+        },
+        data: {
+          referenceId: med.id,
+          type: 'low-stock',
+        },
       });
     }
   }
