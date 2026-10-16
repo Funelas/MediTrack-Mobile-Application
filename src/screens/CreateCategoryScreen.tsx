@@ -3,6 +3,7 @@ import {
   View, Text, SafeAreaView, TouchableOpacity,
   TextInput, ScrollView, Switch, Modal,
   PanResponder, Animated, Platform, UIManager, ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental)
@@ -117,13 +118,22 @@ const handleAdd = () => {
   const isEditing = !!editField;
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={() => { reset(); onClose(); }}
-        style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'}}>
+     <Modal visible={visible} transparent animationType="fade">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{flex: 1, justifyContent: 'flex-end'}}>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => { reset(); onClose(); }}
+          style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <View style={{flex: 1}} />
+        </TouchableOpacity>
         <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-          <View className="bg-white rounded-t-3xl px-5 pt-5 pb-8">
+          <View className="bg-white rounded-t-3xl px-5 pt-5">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{paddingBottom: 32}}>
             <Text className="text-gray-800 font-bold text-base mb-4">{isEditing ? 'Edit Field' : 'Add Field'}</Text>
 
             <Text className="text-gray-700 text-sm font-medium mb-1">Fields Name</Text>
@@ -244,9 +254,10 @@ const handleAdd = () => {
             <TouchableOpacity onPress={handleAdd} className="bg-teal-500 rounded-2xl py-4 items-center">
               <Text className="text-white font-semibold text-base">{isEditing ? 'Save Field' : 'Add Field'}</Text>
             </TouchableOpacity>
+            </ScrollView>
           </View>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
