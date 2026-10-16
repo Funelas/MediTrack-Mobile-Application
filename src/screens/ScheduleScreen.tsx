@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useRef} from 'react';
+import React, {useState, useCallback, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   SafeAreaView,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
-import {useFocusEffect} from '@react-navigation/native';
 import FloatingAddButton from '../components/FloatingAddButton';
 import ScheduleSkeleton from '../components/ScheduleSkeleton';
 import AddToScheduleModal from '../components/AddToScheduleModal';
@@ -176,8 +175,11 @@ export default function ScheduleScreen() {
     getItemsForDateRange(rangeStart, rangeEnd).then(setAllItems);
   }, [currentYear, currentMonth]);
 
-  useFocusEffect(loadItems);
-
+  // Reload data whenever this screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', loadItems);
+    return unsubscribe;
+  }, [navigation, loadItems]);
   // ── derived data ──
 
   const itemsForDay = (d: Date): VirtualItem[] =>

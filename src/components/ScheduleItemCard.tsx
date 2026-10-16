@@ -17,6 +17,7 @@ interface Props {
   isOverdue: boolean;
   onMarkDone: (item: VirtualItem) => void;
   formatTimeStr: (time: string) => string;
+  onPress?: (item: VirtualItem) => void;
 }
 
 function getItemIcon(item: VirtualItem, size: number) {
@@ -36,10 +37,15 @@ export default function ScheduleItemCard({
   isOverdue,
   onMarkDone,
   formatTimeStr,
+  onPress,
 }: Props) {
   const navigation = useNavigation<any>();
 
   const handlePress = () => {
+    if (onPress) {
+      onPress(item);
+      return;
+    }
     if (item.type === 'med') {
       navigation.navigate('Meds', {
         screen: 'MedicineDetail',

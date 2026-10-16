@@ -159,9 +159,9 @@ export default function ScheduleDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            navigation.goBack(); // navigate first before DB operations
             await deleteAllEvents(item!);
             await rescheduleAllNotifications();
+            navigation.goBack();
           } catch {
             Alert.alert('Error', 'Could not delete the event. Please try again.');
           }
@@ -176,7 +176,8 @@ export default function ScheduleDetailScreen() {
   const handleEditScope = (scope: EditScope) => {
     if (!item) return;
     setShowEditModal(false);
-    navigation.navigate('EditSchedule', {
+    const editScreen = (params as any).source === 'home' ? 'HomeEditSchedule' : 'EditSchedule';
+    navigation.navigate(editScreen as any, {
       id: item.id,
       type: item.type as 'reminder' | 'appointment',
       editScope: scope,

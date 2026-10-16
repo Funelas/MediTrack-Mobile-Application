@@ -13,6 +13,7 @@ export type ScheduleStackParamList = {
     type: 'reminder' | 'appointment' | 'med';
     occurrenceDate?: string;
     occurrenceTime?: string;
+    source?: 'home';
   };
   EditSchedule: {
     id: string;
@@ -26,6 +27,25 @@ export type ScheduleStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<ScheduleStackParamList>();
+
+import {useNavigationState, useNavigation} from '@react-navigation/native';
+
+function ScheduleStackWithReset() {
+  const navigation = useNavigation<any>();
+
+  // Whenever this stack comes into focus, pop everything back to ScheduleMain
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'ScheduleMain'}],
+      });
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  return null; // just the side-effect
+}
 
 export default function ScheduleStackNavigator() {
   return (

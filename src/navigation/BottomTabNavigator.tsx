@@ -1,7 +1,7 @@
 import React from 'react';
 import {View, Text} from 'react-native';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import HomeScreen from '../screens/HomeScreen';
+import HomeStackNavigator from './HomeStackNavigator';
 import MedsStackNavigator from './MedsStackNavigator';
 import MedicineScreen from '../screens/MedicineScreen';
 import ReportsStackNavigator from './ReportsStackNavigator';
@@ -81,7 +81,12 @@ export default function BottomTabNavigator() {
           <TabIcon focused={focused} color={color} label={route.name} />
         ),
       })}>
-      <Tab.Screen name="Home" component={HomeScreen} />
+     <Tab.Screen name="Home" component={HomeStackNavigator}
+        options={({navigation}) => ({
+          tabBarStyle: navigation.getState().routes[navigation.getState().index]?.state?.index > 0
+            ? {display: 'none'} : {backgroundColor: '#ffffff', borderTopWidth: 1, borderTopColor: '#f3f4f6', height: 64, paddingBottom: 8, paddingTop: 4},
+        })}
+      />
       <Tab.Screen name="Schedule" component={ScheduleStackNavigator}
         options={({navigation}) => ({
           tabBarStyle: navigation.getState().routes[navigation.getState().index]?.state?.index > 0

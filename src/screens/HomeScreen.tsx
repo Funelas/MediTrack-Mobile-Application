@@ -221,14 +221,14 @@ function NextUpCard({
           activeOpacity={0.8}
           onPress={() => {
             if (item.type === 'med') {
-              navigation.navigate('Meds', {
-                screen: 'MedicineDetail',
-                params: {id: item.referenceId},
-              });
+              navigation.navigate('HomeMedicineDetail', {id: item.referenceId});
             } else {
-              navigation.navigate('Schedule', {
-                screen: 'ScheduleDetail',
-                params: {id: item.referenceId, type: item.type},
+              navigation.navigate('HomeScheduleDetail', {
+                id: item.referenceId,
+                type: item.type,
+                occurrenceDate: item.date.toISOString(),
+                occurrenceTime: item.time,
+                source: 'home',
               });
             }
           }}>
@@ -282,6 +282,7 @@ export default function HomeScreen() {
   const iconSm = s(12);
   const iconMd = s(20);
   const iconLg = s(35);
+  const navigation = useNavigation<any>();
 
   const [todayItems, setTodayItems] = useState<VirtualItem[]>([]);
   const [now, setNow] = useState(new Date());
@@ -410,6 +411,19 @@ export default function HomeScreen() {
                 isOverdue={isItemOverdue(item)}
                 onMarkDone={handleMarkDone}
                 formatTimeStr={formatTimeStr}
+                onPress={(pressed) => {
+                  if (pressed.type === 'med') {
+                    navigation.navigate('HomeMedicineDetail', {id: pressed.referenceId});
+                  } else {
+                    navigation.navigate('HomeScheduleDetail', {
+                      id: pressed.referenceId,
+                      type: pressed.type,
+                      occurrenceDate: pressed.date.toISOString(),
+                      occurrenceTime: pressed.time,
+                      source: 'home',
+                    });
+                  }
+                }}
               />
             ))}
           </View>
