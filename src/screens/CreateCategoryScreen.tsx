@@ -115,25 +115,72 @@ const handleAdd = () => {
     onClose();
   };
 
+  const dragY = useRef(new Animated.Value(0)).current;
+  const overlayOpacity = dragY.interpolate({
+    inputRange: [0, 300],
+    outputRange: [0.5, 0],
+    extrapolate: 'clamp',
+  });
+  const dragPan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gs) => {
+        if (gs.dy > 0) dragY.setValue(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        if (gs.dy > 80) {
+          Animated.timing(dragY, {toValue: 600, duration: 200, useNativeDriver: true}).start(() => {
+            dragY.setValue(0);
+            reset();
+            onClose();
+          });
+        } else {
+          Animated.spring(dragY, {toValue: 0, useNativeDriver: true}).start();
+        }
+      },
+    })
+  ).current;
+
   const isEditing = !!editField;
 
   return (
-     <Modal visible={visible} transparent animationType="fade">
+     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{flex: 1, justifyContent: 'flex-end'}}>
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: '#000',
+            opacity: overlayOpacity,
+          }}
+        />
+        {/* Tap outside to close */}
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => { reset(); onClose(); }}
-          style={{flex: 1, backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <View style={{flex: 1}} />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={1} onPress={() => {}}>
-          <View className="bg-white rounded-t-3xl px-5 pt-5">
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={{paddingBottom: 32}}>
+          style={{flex: 1}}
+        />
+        <Animated.View
+          style={{
+            transform: [{translateY: dragY}],
+            backgroundColor: 'white',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            overflow: 'hidden',
+          }}>
+          {/* Drag handle */}
+          <View
+            {...dragPan.panHandlers}
+            style={{alignItems: 'center', paddingTop: 12, paddingBottom: 4}}>
+            <View style={{width: 40, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB'}} />
+          </View>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{paddingHorizontal: 20, paddingBottom: 32}}>
             <Text className="text-gray-800 font-bold text-base mb-4">{isEditing ? 'Edit Field' : 'Add Field'}</Text>
 
             <Text className="text-gray-700 text-sm font-medium mb-1">Fields Name</Text>
@@ -255,8 +302,7 @@ const handleAdd = () => {
               <Text className="text-white font-semibold text-base">{isEditing ? 'Save Field' : 'Add Field'}</Text>
             </TouchableOpacity>
             </ScrollView>
-          </View>
-        </TouchableOpacity>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );
