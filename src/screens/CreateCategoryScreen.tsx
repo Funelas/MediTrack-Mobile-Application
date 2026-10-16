@@ -231,9 +231,10 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
 // --- Draggable Field List ---
 const ROW_HEIGHT = 72;
 
-function FieldRow({field, dotColor = '#9ca3af', borderColor = '#E5E7EB', bgColor = '#ffffff', onEdit, panHandlers}: {
+function FieldRow({field, dotColor = '#9ca3af', borderColor = '#E5E7EB', bgColor = '#ffffff', onEdit, onDelete, panHandlers}: {
   field: Field; dotColor?: string; borderColor?: string; bgColor?: string;
   onEdit?: (field: Field) => void;
+  onDelete?: (field: Field) => void;
   panHandlers?: any;
 }) {
   return (
@@ -263,14 +264,22 @@ function FieldRow({field, dotColor = '#9ca3af', borderColor = '#E5E7EB', bgColor
         </View>
         <Text className="text-gray-400 text-lg">{onEdit ? '✎' : '›'}</Text>
       </TouchableOpacity>
+      {onDelete && (
+        <TouchableOpacity
+          onPress={() => onDelete(field)}
+          className="pl-2 pr-1">
+          <Text className="text-red-400 text-lg">✕</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
-function DraggableFieldList({fields, setFields, onEdit}: {
+function DraggableFieldList({fields, setFields, onEdit, onDelete}: {
   fields: Field[];
   setFields: (f: Field[]) => void;
   onEdit?: (field: Field) => void;
+  onDelete?: (field: Field) => void;
 }) {
   const fieldsRef = useRef(fields);
   const setFieldsRef = useRef(setFields);
@@ -360,6 +369,7 @@ function DraggableFieldList({fields, setFields, onEdit}: {
               <FieldRow
                 field={field}
                 onEdit={onEdit}
+                onDelete={onDelete}
                 panHandlers={pr.panHandlers}
               />
             </View>
@@ -627,6 +637,9 @@ function StepFields({fields, setFields, onContinue}: {
     setShowModal(true);
   };
 
+  const handleDelete = (field: Field) => {
+    setFields(fields.filter(f => f.id !== field.id));
+  };
   const handleSave = (updated: Field) => {
     if (editingField) {
       setFields(fields.map(f => f.id === updated.id ? updated : f));
@@ -644,7 +657,7 @@ function StepFields({fields, setFields, onContinue}: {
 
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         <View className="px-5">
-          <DraggableFieldList fields={fields} setFields={setFields} onEdit={handleEdit} />
+          <DraggableFieldList fields={fields} setFields={setFields} onEdit={handleEdit} onDelete={handleDelete} />
 
           <TouchableOpacity
             onPress={() => { setEditingField(null); setShowModal(true); }}
