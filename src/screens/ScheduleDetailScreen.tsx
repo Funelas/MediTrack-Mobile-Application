@@ -24,6 +24,7 @@ import {
   VirtualItem,
 } from '../database/services';
 import {rescheduleAllNotifications} from '../notifications/notificationService';
+import Trash from '../assets/svg_icons/trash.svg';
 
 type Nav = NativeStackNavigationProp<ScheduleStackParamList>;
 type Route = RouteProp<ScheduleStackParamList, 'ScheduleDetail'>;
@@ -235,7 +236,7 @@ export default function ScheduleDetailScreen() {
         <View className="flex-row items-center gap-1">
           {/* Delete */}
           <TouchableOpacity onPress={handleDelete} className="p-2">
-            <Text className="text-red-500 text-sm font-semibold">Delete</Text>
+            <Trash width={18} height={18} color="#EF4444" />
           </TouchableOpacity>
 
           {/* Edit */}
