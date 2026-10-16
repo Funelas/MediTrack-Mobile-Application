@@ -196,7 +196,11 @@ export default function CheckupScreen() {
         // Use the latest selectedCategoryId from state, fall back to first category
         setSelectedCategoryId(prev => {
           const activeCatId = prev || merged[0]?.id || '';
-          if (!activeCatId) return prev;
+          if (!activeCatId) {
+            setTestRows({});
+            setLoading(false);  // ← this was missing
+            return prev;
+          }
 
           // Fire the async load inside the setter so we have the resolved id
           (async () => {
