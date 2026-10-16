@@ -56,10 +56,18 @@ export default function InputMethodScreen() {
     setLoading(true);
     try {
       const rawText = await recognizeText(imageUri);
+      console.log('=== OCR RAW TEXT ===');
+      console.log(rawText);
+      console.log('===================');
       const fields = (params as any).fields
         ? JSON.parse((params as any).fields)
         : (CATEGORY_FIELDS[categoryId] ?? []);
+      console.log('=== OCR FIELDS ===');
+      console.log(JSON.stringify(fields, null, 2));
       const entries = parseOCRText(rawText, fields);
+      console.log('=== OCR PARSED ENTRIES ===');
+      console.log(JSON.stringify(entries, null, 2));
+      console.log('==========================');
       navigation.navigate('VerifyResult', {
         categoryId,
         categoryLabel,

@@ -56,7 +56,7 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
   const [allowNote, setAllowNote] = useState(false);
   const [aliasInput, setAliasInput] = useState('');
   const [aliases, setAliases] = useState<string[]>([]);
-
+  const [errors, setErrors] = useState<{name?: string; unit?: string; refRange?: string}>({});
   useEffect(() => {
     if (editField) {
       setName(editField.name);
@@ -73,10 +73,11 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
   }, [editField, visible]);
 
   const reset = () => {
-    setName(''); setType('numerical'); setUnit('');
-    setRefFrom(''); setRefTo(''); setAllowNote(false);
-    setAliasInput(''); setAliases([]);
-  };
+  setName(''); setType('numerical'); setUnit('');
+  setRefFrom(''); setRefTo(''); setAllowNote(false);
+  setAliasInput(''); setAliases([]);
+  setErrors({});
+};
 
   const handleAddAlias = () => {
     const trimmed = aliasInput.trim();
@@ -85,8 +86,21 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
     setAliasInput('');
   };
 
-  const handleAdd = () => {
-    if (!name.trim()) return;
+const handleAdd = () => {
+    if (!name.trim()) {
+      setErrors(e => ({...e, name: 'Field name is required.'}));
+      return;
+    }
+    if (type === 'numerical') {
+      const newErrors: {unit?: string; refRange?: string} = {};
+      if (!unit.trim()) newErrors.unit = 'Unit is required.';
+      if (!refFrom.trim() || !refTo.trim()) newErrors.refRange = 'Both From and To values are required.';
+      if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        return;
+      }
+    }
+    setErrors({});
     onAdd({
       id: editField ? editField.id : Date.now().toString(),
       name: name.trim(), type,
@@ -116,11 +130,14 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
             <Text className="text-gray-400 text-xs mb-2">Enter the name of this field</Text>
             <TextInput
               value={name}
-              onChangeText={setName}
+              onChangeText={v => { setName(v); setErrors(e => ({...e, name: undefined})); }}
               placeholder={type === 'numerical' ? 'e.g. Hemoglobin' : 'e.g. Metformin'}
               placeholderTextColor="#9ca3af"
-              className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm mb-4"
+              className={`border rounded-xl px-4 py-3 text-gray-800 text-sm ${errors.name ? 'border-red-400 mb-1' : 'border-gray-200 mb-4'}`}
             />
+            {errors.name && (
+              <Text className="text-red-400 text-xs mb-4">{errors.name}</Text>
+            )}
 
             <Text className="text-gray-700 text-sm font-medium mb-2">Fields Type</Text>
             <View className="flex-row gap-3 mb-4">
@@ -142,19 +159,22 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
 
             {type === 'numerical' && (
               <>
-                <Text className="text-gray-700 text-sm font-medium mb-1">Unit <Text className="text-gray-400 font-normal">(Optional)</Text></Text>
+                <Text className="text-gray-700 text-sm font-medium mb-1">Unit</Text>
                 <TextInput
                   value={unit}
-                  onChangeText={setUnit}
+                  onChangeText={v => { setUnit(v); setErrors(e => ({...e, unit: undefined})); }}
                   placeholder="e.g mg/dL"
                   placeholderTextColor="#9ca3af"
-                  className="border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm mb-4"
+                  className={`border rounded-xl px-4 py-3 text-gray-800 text-sm ${errors.unit ? 'border-red-400 mb-1' : 'border-gray-200 mb-4'}`}
                 />
-                <Text className="text-gray-700 text-sm font-medium mb-2">Reference Range <Text className="text-gray-400 font-normal">(Optional)</Text></Text>
-                <View className="flex-row gap-3 mb-4">
+                {errors.unit && (
+                  <Text className="text-red-400 text-xs mb-4">{errors.unit}</Text>
+                )}
+                <Text className="text-gray-700 text-sm font-medium mb-2">Reference Range</Text>
+                <View className={`flex-row gap-3 ${errors.refRange ? 'mb-1' : 'mb-4'}`}>
                   <TextInput
                     value={refFrom}
-                    onChangeText={setRefFrom}
+                    onChangeText={v => { setRefFrom(v); setErrors(e => ({...e, refRange: undefined})); }}
                     placeholder="From"
                     placeholderTextColor="#9ca3af"
                     keyboardType="numeric"
@@ -163,13 +183,16 @@ function AddFieldModal({visible, onClose, onAdd, editField}: {
                   <View className="justify-center"><Text className="text-gray-400">to</Text></View>
                   <TextInput
                     value={refTo}
-                    onChangeText={setRefTo}
+                    onChangeText={v => { setRefTo(v); setErrors(e => ({...e, refRange: undefined})); }}
                     placeholder="To"
                     placeholderTextColor="#9ca3af"
                     keyboardType="numeric"
                     className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-gray-800 text-sm"
                   />
                 </View>
+                {errors.refRange && (
+                  <Text className="text-red-400 text-xs mb-4">{errors.refRange}</Text>
+                )}
               </>
             )}
 

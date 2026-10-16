@@ -11,7 +11,37 @@ export interface ParsedEntry {
  */
 export async function recognizeText(imageUri: string): Promise<string> {
   const result = await TextRecognition.recognize(imageUri);
-  return result.text;
+
+  // Flatten all lines across all blocks, each with their Y and X position
+  const lines: {text: string; top: number; left: number}[] = [];
+
+  for (const block of result.blocks) {
+    for (const line of block.lines) {
+      const frame = line.frame;
+      if (frame) {
+        lines.push({
+          text: line.text,
+          top: frame.top,
+          left: frame.left,
+        });
+      }
+    }
+  }
+
+  // Sort: group lines into horizontal bands (within 20px of each other),
+  // then sort left-to-right within each band
+  const ROW_TOLERANCE = 20;
+  lines.sort((a, b) => {
+    const rowDiff = a.top - b.top;
+    if (Math.abs(rowDiff) <= ROW_TOLERANCE) {
+      // Same row — sort left to right
+      return a.left - b.left;
+    }
+    // Different rows — sort top to bottom
+    return rowDiff;
+  });
+
+  return lines.map(l => l.text).join('\n');
 }
 
 /**
@@ -75,45 +105,100 @@ export function parseOCRText(
     .map(l => l.trim())
     .filter(Boolean);
 
-  const numericRegex = /\d+(\.\d+)?/;
+  const numericRegex = /\b\d+(\.\d+)?\b/;
+  const numericRegexG = /\b\d+(\.\d+)?\b/g;
 
-  return fields.map(field => {
+  // ── Step 1: find which line index each field name appears on ──
+  const matchLineIndexes: number[] = fields.map(field => {
     const aliases = getAliases(field.name, field.aliases);
-
-    let matchLineIndex = -1;
+    let best = -1;
     let bestScore = 0;
-
     lines.forEach((line, i) => {
       const lineLower = normalize(line);
-
       for (const alias of aliases) {
-        // exact substring match — highest priority
         if (lineLower.includes(alias)) {
           const score = alias.length * 2;
-          if (score > bestScore) {
-            bestScore = score;
-            matchLineIndex = i;
-          }
+          if (score > bestScore) { bestScore = score; best = i; }
           break;
         }
-        // fuzzy fallback
         const score = alias.split('').filter(c => lineLower.includes(c)).length;
         const ratio = score / alias.length;
-        if (ratio > 0.75 && score > bestScore) {
-          bestScore = score;
-          matchLineIndex = i;
-        }
+        if (ratio > 0.75 && score > bestScore) { bestScore = score; best = i; }
       }
     });
+    return best;
+  });
 
-    if (matchLineIndex === -1) return {fieldName: field.name, value: '', unit: field.unit};
+  // ── Step 2: check if this looks like a columnar report ──
+  // Columnar = field names are found, but those lines have NO numeric value
+  const matchedFields = matchLineIndexes.filter(i => i !== -1);
+  const isColumnar = matchedFields.length >= 2 && matchedFields.every(i => {
+    const line = lines[i];
+    return !numericRegex.test(line);
+  });
+
+  if (isColumnar) {
+    // ── Columnar strategy ──
+    // Find the last line where any field name appears
+    const lastNameLine = Math.max(...matchedFields);
+
+    // Collect all numbers that appear AFTER the last field name line
+    // Prefer the "Conventional Unit" block if the word appears
+    const conventionalIdx = lines.findIndex(
+      (l, i) => i > lastNameLine && /conventional/i.test(l)
+    );
+    const siIdx = lines.findIndex(
+      (l, i) => i > lastNameLine && /\bsi\b|si unit/i.test(l)
+    );
+
+    // Start collecting numbers from after the last name line,
+    // but if we can find a "Conventional" section header, prefer those numbers
+    const startIdx = conventionalIdx !== -1 ? conventionalIdx + 1
+                   : siIdx !== -1           ? siIdx + 1
+                   : lastNameLine + 1;
+
+    const valueLines = lines.slice(startIdx);
+    const allValues: string[] = [];
+    for (const line of valueLines) {
+      // skip header-like lines (Flag, Result, Normal Range, etc.)
+      if (/flag|result|normal|range|unit|conventional|si\b/i.test(line)) continue;
+      const nums = line.match(numericRegexG);
+      if (nums) allValues.push(...nums);
+    }
+
+    console.log('=== COLUMNAR VALUES EXTRACTED ===', allValues);
+
+    // Map each matched field (in order of appearance) to a value by index
+    let valueIdx = 0;
+    const ordered = [...matchLineIndexes]
+      .map((lineIdx, fieldIdx) => ({ lineIdx, fieldIdx }))
+      .filter(x => x.lineIdx !== -1)
+      .sort((a, b) => a.lineIdx - b.lineIdx);
+
+    const fieldValues: Record<number, string> = {};
+    for (const { fieldIdx } of ordered) {
+      fieldValues[fieldIdx] = allValues[valueIdx] ?? '';
+      valueIdx++;
+    }
+
+    return fields.map((field, i) => ({
+      fieldName: field.name,
+      value: fieldValues[i] ?? '',
+      unit: field.unit,
+    }));
+  }
+
+  // ── Inline strategy (original logic) ──
+  return fields.map((field, i) => {
+    const matchLineIndex = matchLineIndexes[i];
+    if (matchLineIndex === -1) return { fieldName: field.name, value: '', unit: field.unit };
 
     const inlineMatch = lines[matchLineIndex].match(numericRegex);
-    if (inlineMatch) return {fieldName: field.name, value: inlineMatch[0], unit: field.unit};
+    if (inlineMatch) return { fieldName: field.name, value: inlineMatch[0], unit: field.unit };
 
     const nextMatch = (lines[matchLineIndex + 1] ?? '').match(numericRegex);
-    if (nextMatch) return {fieldName: field.name, value: nextMatch[0], unit: field.unit};
+    if (nextMatch) return { fieldName: field.name, value: nextMatch[0], unit: field.unit };
 
-    return {fieldName: field.name, value: '', unit: field.unit};
+    return { fieldName: field.name, value: '', unit: field.unit };
   });
 }
