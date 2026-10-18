@@ -1,0 +1,1403 @@
+{
+  "version": "1.1.0",
+  "description": "Shared canonical dictionary v1.1 for the parser, the router and scoring. 8 staged analytes plus not-staged numeric, qualitative and descriptive analytes across the cbc, metabolic, renal, hepatic, thyroid and urinalysis panels. type gives the scoring mechanism: staged means the analyte is banded by the cut-offs in CLINICAL_RULES (seven guideline-anchored; creatinine's cut-offs are project-defined); not_staged means it is scored against the printed range or the expected-value rule, or is not scored (descriptive). Where a severity came from is recorded per row by range_basis in Contract B, not by type.",
+  "matching_rules": [
+    "Names are compared after normalization: lowercase, punctuation replaced by spaces, whitespace collapsed.",
+    "Try the report section's section_aliases first, then an exact whole-name alias match. Use fuzzy matching only when there is no exact match.",
+    "Aliases of 3 characters or fewer (K, Na, Hb, TG, Eos ...) match exactly only; never fuzzy-match them.",
+    "Where one alias is contained in a longer alias of another code (Hemoglobin vs Hemoglobin A1c, Cholesterol vs LDL Cholesterol, MCH vs MCHC), the longer, exact match wins.",
+    "Units: a reported unit is accepted as-is only if it equals standard_unit or one of unit_aliases after normalization (lowercase, micro sign to u, superscript 2 to 2, spaces removed). unit_aliases are numerically identical spellings only.",
+    "Real unit conversions (g/L to g/dL, mmol/L to mg/dL and so on) are listed in unit_conversions.json and applied by the parser before scoring. The scoring module still compares units strictly.",
+    "Analytes with standard_unit null are dimensionless or non-numeric; they accept a missing unit.",
+    "result_kind: numeric (scored from a value and a range), qualitative (scored with the expected_values rule), descriptive (stored, never scored).",
+    "default_ref_interval is used only when the report prints no range for a numeric analyte. An interval is kept only when the published sources checked agree on one adult interval and it is cited (status cited; source is a citation with a URL and an access date). Otherwise it is null and default_ref_reason records why (ticket ML-04).",
+    "plausible_range is a project-defined sanity bound used for OCR confidence checks, not a clinical reference.",
+    "The parser must emit standard_unit exactly (scoring compares units strictly for staged analytes).",
+    "Rows with no dictionary match are emitted with canonical_code null in Contract A and enter Contract B as 'unknown_unmapped' (scored only when the lab printed its own range).",
+    "default_ref_reason records why a numeric lab-range analyte has no default (ML-04); such a row is scored only against a printed range and is indeterminate otherwise. A row scored against a default carries range_basis dictionary_default in Contract B."
+  ],
+  "section_aliases": {
+    "urinalysis": {
+      "RBC": "urine_rbc",
+      "Red Blood Cells": "urine_rbc",
+      "RBC Count": "urine_rbc",
+      "WBC": "urine_wbc",
+      "WBC Count": "urine_wbc",
+      "White Blood Cells": "urine_wbc",
+      "Glucose": "urine_glucose",
+      "Sugar": "urine_glucose",
+      "Protein": "urine_protein",
+      "Bilirubin": "urine_bilirubin",
+      "Blood": "urine_blood",
+      "Color": "urine_color",
+      "Appearance": "urine_transparency",
+      "pH": "urine_ph"
+    }
+  },
+  "analytes": {
+    "glucose_fasting": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "staged",
+      "panel": "metabolic",
+      "aliases": [
+        "FBS",
+        "Fasting Blood Sugar",
+        "Fasting Glucose",
+        "Glucose, Fasting"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        10,
+        1500
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "hba1c": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "staged",
+      "panel": "metabolic",
+      "aliases": [
+        "HbA1c",
+        "Hemoglobin A1c",
+        "Glycated Hemoglobin",
+        "A1C"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        2,
+        20
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "egfr": {
+      "standard_unit": "mL/min/1.73m2",
+      "unit_aliases": [
+        "mL/min/1.73 m2",
+        "mL/min/1.73 m²",
+        "mL/min/1.73m²"
+      ],
+      "type": "staged",
+      "panel": "renal",
+      "aliases": [
+        "eGFR",
+        "Estimated GFR",
+        "Glomerular Filtration Rate"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1,
+        200
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "creatinine": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "staged",
+      "panel": "renal",
+      "aliases": [
+        "Creatinine",
+        "Serum Creatinine",
+        "CREA"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.1,
+        30
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "triglycerides": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "staged",
+      "panel": "lipid",
+      "aliases": [
+        "Triglycerides",
+        "TRIG",
+        "TG"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        10,
+        5000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "cholesterol_total": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "staged",
+      "panel": "lipid",
+      "aliases": [
+        "Total Cholesterol",
+        "Cholesterol",
+        "CHOL"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        30,
+        1000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "ldl": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "staged",
+      "panel": "lipid",
+      "aliases": [
+        "LDL",
+        "LDL Cholesterol",
+        "LDL-C"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        5,
+        800
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "hdl": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "staged",
+      "panel": "lipid",
+      "aliases": [
+        "HDL",
+        "HDL Cholesterol",
+        "HDL-C"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        3,
+        250
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "glucose_random": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "not_staged",
+      "panel": "metabolic",
+      "aliases": [
+        "RBS",
+        "Random Blood Sugar",
+        "Random Glucose",
+        "Blood Sugar, Random"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        10,
+        1500
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. A random glucose result depends on the time since the last meal: MedlinePlus gives only a typical upper value, and the ABIM reference list gives a fasting range only. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003482.htm, accessed 2026-10-13 (Blood sugar test)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "sodium": {
+      "standard_unit": "mmol/L",
+      "unit_aliases": [
+        "mEq/L"
+      ],
+      "type": "not_staged",
+      "panel": "metabolic",
+      "aliases": [
+        "Sodium",
+        "Na",
+        "Serum Sodium"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        90,
+        180
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages checked give two different ranges, and the ABIM reference list gives a third. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003481.htm, accessed 2026-10-13 (Sodium blood test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003462.htm, accessed 2026-10-13 (Basic metabolic panel)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "potassium": {
+      "standard_unit": "mmol/L",
+      "unit_aliases": [
+        "mEq/L"
+      ],
+      "type": "not_staged",
+      "panel": "metabolic",
+      "aliases": [
+        "Potassium",
+        "K",
+        "Serum Potassium"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1.5,
+        9
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages checked agree with each other, but the ABIM reference list gives a different range. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003484.htm, accessed 2026-10-13 (Potassium test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003462.htm, accessed 2026-10-13 (Basic metabolic panel)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "bun": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "not_staged",
+      "panel": "renal",
+      "aliases": [
+        "BUN",
+        "Blood Urea Nitrogen",
+        "Urea Nitrogen"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1,
+        300
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages checked agree with each other, but the ABIM reference list gives a different range. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003474.htm, accessed 2026-10-13 (BUN - blood test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003462.htm, accessed 2026-10-13 (Basic metabolic panel)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "uric_acid": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "not_staged",
+      "panel": "renal",
+      "aliases": [
+        "Uric Acid",
+        "Serum Uric Acid",
+        "BUA"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.5,
+        25
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. MedlinePlus gives separate ranges for men and women, and the ABIM reference list gives a single, different range. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003476.htm, accessed 2026-10-13 (Uric acid - blood)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "alt": {
+      "standard_unit": "U/L",
+      "unit_aliases": [
+        "IU/L"
+      ],
+      "type": "not_staged",
+      "panel": "hepatic",
+      "aliases": [
+        "ALT",
+        "SGPT",
+        "ALT/SGPT",
+        "Alanine Aminotransferase"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1,
+        5000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages and the ABIM reference list give differing ranges, and the ACG guideline states that upper limits vary between laboratories and proposes lower, sex-specific limits for a healthy normal ALT. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003473.htm, accessed 2026-10-13 (Alanine transaminase (ALT) blood test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Kwo PY, Cohen SM, Lim JK, ACG Clinical Guideline: Evaluation of Abnormal Liver Chemistries, Am J Gastroenterol, advance online 20 Dec 2016, doi:10.1038/ajg.2016.517, https://doi.org/10.1038/ajg.2016.517, accessed 2026-10-13 (publisher page paywalled; text read from a university-hosted copy)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "ast": {
+      "standard_unit": "U/L",
+      "unit_aliases": [
+        "IU/L"
+      ],
+      "type": "not_staged",
+      "panel": "hepatic",
+      "aliases": [
+        "AST",
+        "SGOT",
+        "AST/SGOT",
+        "Aspartate Aminotransferase"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1,
+        5000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages and the ABIM reference list give differing ranges, and the ACG guideline states that upper limits vary between laboratories. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003472.htm, accessed 2026-10-13 (Aspartate aminotransferase (AST) blood test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Kwo PY, Cohen SM, Lim JK, ACG Clinical Guideline: Evaluation of Abnormal Liver Chemistries, Am J Gastroenterol, advance online 20 Dec 2016, doi:10.1038/ajg.2016.517, https://doi.org/10.1038/ajg.2016.517, accessed 2026-10-13 (publisher page paywalled; text read from a university-hosted copy)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "alp": {
+      "standard_unit": "U/L",
+      "unit_aliases": [
+        "IU/L"
+      ],
+      "type": "not_staged",
+      "panel": "hepatic",
+      "aliases": [
+        "ALP",
+        "Alkaline Phosphatase"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        5,
+        3000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages checked give two different ranges and the ABIM reference list a third; MedlinePlus says normal values can vary with age and sex and that levels are high in children during growth spurts and in pregnancy, and the ACG guideline says clinicians may rely on the local laboratory's upper limit. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003470.htm, accessed 2026-10-13 (ALP - blood test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Kwo PY, Cohen SM, Lim JK, ACG Clinical Guideline: Evaluation of Abnormal Liver Chemistries, Am J Gastroenterol, advance online 20 Dec 2016, doi:10.1038/ajg.2016.517, https://doi.org/10.1038/ajg.2016.517, accessed 2026-10-13 (publisher page paywalled; text read from a university-hosted copy)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "bilirubin_total": {
+      "standard_unit": "mg/dL",
+      "unit_aliases": [
+        "mg/100mL"
+      ],
+      "type": "not_staged",
+      "panel": "hepatic",
+      "aliases": [
+        "Total Bilirubin",
+        "T. Bilirubin",
+        "TBIL"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.05,
+        60
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The MedlinePlus pages checked agree with each other, but the ABIM reference list gives a different range, and the ACG guideline says clinicians may rely on the local laboratory's upper limit. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003479.htm, accessed 2026-10-13 (Bilirubin blood test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003468.htm, accessed 2026-10-13 (Comprehensive metabolic panel)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Kwo PY, Cohen SM, Lim JK, ACG Clinical Guideline: Evaluation of Abnormal Liver Chemistries, Am J Gastroenterol, advance online 20 Dec 2016, doi:10.1038/ajg.2016.517, https://doi.org/10.1038/ajg.2016.517, accessed 2026-10-13 (publisher page paywalled; text read from a university-hosted copy)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "tsh": {
+      "standard_unit": "uIU/mL",
+      "unit_aliases": [
+        "µIU/mL",
+        "mIU/L"
+      ],
+      "type": "not_staged",
+      "panel": "thyroid",
+      "aliases": [
+        "TSH",
+        "Thyroid Stimulating Hormone"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.001,
+        500
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. MedlinePlus, the ABIM reference list and the UK thyroid function test guideline give differing ranges; MedlinePlus says experts do not fully agree on the upper limit and some laboratories use a higher limit for older people, and the UK guideline calls for method-related ranges confirmed locally. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003684.htm, accessed 2026-10-13 (TSH test)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Association for Clinical Biochemistry, British Thyroid Association and British Thyroid Foundation, UK Guidelines for the Use of Thyroid Function Tests, July 2006, https://british-thyroid-association.org/wp-content/uploads/2025/06/The-UK-guidelines-for-the-use-of-Thyroid-Function-Tests.pdf, accessed 2026-10-13",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "free_t4": {
+      "standard_unit": "ng/dL",
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "thyroid",
+      "aliases": [
+        "Free T4",
+        "FT4",
+        "Thyroxine, Free"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.1,
+        10
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. MedlinePlus, the ABIM reference list and the UK thyroid function test guideline give differing ranges, and the UK guideline states that assay design can give method-related differences even on identical samples and calls for method-related ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003517.htm, accessed 2026-10-13 (Free T4 test)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Association for Clinical Biochemistry, British Thyroid Association and British Thyroid Foundation, UK Guidelines for the Use of Thyroid Function Tests, July 2006, https://british-thyroid-association.org/wp-content/uploads/2025/06/The-UK-guidelines-for-the-use-of-Thyroid-Function-Tests.pdf, accessed 2026-10-13",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "free_t3": {
+      "standard_unit": "pg/mL",
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "thyroid",
+      "aliases": [
+        "Free T3",
+        "FT3",
+        "Triiodothyronine, Free"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.5,
+        30
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. MedlinePlus, the ABIM reference list and the UK thyroid function test guideline give differing ranges, and the UK guideline states that assay design can give method-related differences even on identical samples and calls for method-related ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003687.htm, accessed 2026-10-13 (T3 test)",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "Association for Clinical Biochemistry, British Thyroid Association and British Thyroid Foundation, UK Guidelines for the Use of Thyroid Function Tests, July 2006, https://british-thyroid-association.org/wp-content/uploads/2025/06/The-UK-guidelines-for-the-use-of-Thyroid-Function-Tests.pdf, accessed 2026-10-13",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "hemoglobin": {
+      "standard_unit": "g/dL",
+      "unit_aliases": [
+        "g/100mL"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Hemoglobin",
+        "Hgb",
+        "Hb"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        2,
+        25
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked give differing example ranges and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003645.htm, accessed 2026-10-10 (Hemoglobin)",
+          "WHO, Guideline on haemoglobin cutoffs to define anaemia in individuals and populations, 2024, ISBN 978-92-4-008854-2, https://www.who.int/publications/i/item/9789240088542, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "hematocrit": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Hematocrit",
+        "Hct",
+        "Packed Cell Volume",
+        "PCV"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        5,
+        75
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked give differing example ranges and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003646.htm, accessed 2026-10-10 (Hematocrit)",
+          "Macapinlac MP, Albino AM, Camara-Besa SF, Acta Med Philipp 1958;15(1):65-70, https://repository.mainlib.upd.edu.ph/omekas/s/rare-periodicals/media/631, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "rbc": {
+      "standard_unit": "x10^12/L",
+      "unit_aliases": [
+        "10^12/L",
+        "x10^6/uL",
+        "10^6/uL",
+        "x10^6/µL",
+        "10^6/µL",
+        "M/uL"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "RBC",
+        "Red Blood Cell Count",
+        "Red Blood Cells",
+        "RBC Count",
+        "Erythrocytes"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.5,
+        10
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked give differing example ranges and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003644.htm, accessed 2026-10-10 (RBC count)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "wbc": {
+      "standard_unit": "x10^9/L",
+      "unit_aliases": [
+        "10^9/L",
+        "x10^3/uL",
+        "10^3/uL",
+        "x10^3/µL",
+        "10^3/µL",
+        "K/uL"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "WBC",
+        "White Blood Cell Count",
+        "White Blood Cells",
+        "WBC Count",
+        "Leukocyte Count",
+        "Leucocyte Count"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0.1,
+        500
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked agree with each other, but the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003643.htm, accessed 2026-10-10 (WBC count)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "platelets": {
+      "standard_unit": "x10^9/L",
+      "unit_aliases": [
+        "10^9/L",
+        "x10^3/uL",
+        "10^3/uL",
+        "x10^3/µL",
+        "10^3/µL",
+        "K/uL"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Platelets",
+        "PLT",
+        "Platelet Count",
+        "Thrombocytes",
+        "Platelet"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1,
+        2000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "kept_null_by_policy",
+        "text": "Kept null by policy, not for lack of agreement: the sources checked and both real reports agree on this analyte, but the default is left null so the whole CBC panel follows one rule (decision D1 = A). CBC reference intervals still vary between laboratories and with sex, age and altitude. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003647.htm, accessed 2026-10-10 (Platelet count)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "mcv": {
+      "standard_unit": "fL",
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "MCV",
+        "Mean Corpuscular Volume"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        40,
+        160
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked give differing example ranges and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003648.htm, accessed 2026-10-10 (RBC indices)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "mch": {
+      "standard_unit": "pg",
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "MCH",
+        "Mean Corpuscular Hemoglobin"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        10,
+        50
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked give differing example ranges and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003648.htm, accessed 2026-10-10 (RBC indices)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "mchc": {
+      "standard_unit": "g/dL",
+      "unit_aliases": [
+        "g/100mL"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "MCHC",
+        "Mean Corpuscular Hemoglobin Concentration"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        20,
+        45
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories and with sex, age and altitude; the sources checked agree with each other, but the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003642.htm, accessed 2026-10-10 (Complete blood count)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003648.htm, accessed 2026-10-10 (RBC indices)",
+          "Macapinlac MP, Albino AM, Camara-Besa SF, Acta Med Philipp 1958;15(1):65-70, https://repository.mainlib.upd.edu.ph/omekas/s/rare-periodicals/media/631, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "rdw": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "RDW",
+        "Red Cell Distribution Width",
+        "RDW-CV"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        5,
+        40
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The source checked gives no number and says the reference range depends on the laboratory; only one of the two real reports prints an RDW range. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus lab tests, RDW (red cell distribution width), https://medlineplus.gov/lab-tests/rdw-red-cell-distribution-width/, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "neutrophils": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Neutrophils",
+        "Segmenters",
+        "Segs",
+        "Neut",
+        "Segmented Neutrophils"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        100
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories; the two published sources checked that list ranges give differing ranges (one gives percentages only; the other gives one laboratory's example values in percentages and in absolute counts and recommends absolute counts), and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003657.htm, accessed 2026-10-10 (Blood differential)",
+          "Etzell JE, CAP Today, March 2010, reporting the WBC differential in absolute numbers, https://www.captodayonline.com/Archives/0310/0310d_for_wbc_differentials.html, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "bands": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Stabs",
+        "Bands",
+        "Band Neutrophils"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        100
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. Only one of the two real reports prints a bands range, and the only source checked that lists a bands range gives it as a percentage (absolute counts are preferred). Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003657.htm, accessed 2026-10-10 (Blood differential)",
+          "Etzell JE, CAP Today, March 2010, reporting the WBC differential in absolute numbers, https://www.captodayonline.com/Archives/0310/0310d_for_wbc_differentials.html, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "lymphocytes": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Lymphocytes",
+        "Lymph"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        100
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories; the two published sources checked that list ranges give differing ranges (one gives percentages only; the other gives one laboratory's example values in percentages and in absolute counts and recommends absolute counts), and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003657.htm, accessed 2026-10-10 (Blood differential)",
+          "Etzell JE, CAP Today, March 2010, reporting the WBC differential in absolute numbers, https://www.captodayonline.com/Archives/0310/0310d_for_wbc_differentials.html, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "monocytes": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Monocytes",
+        "Mono"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        100
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories; the two published sources checked that list ranges give differing ranges (one gives percentages only; the other gives one laboratory's example values in percentages and in absolute counts and recommends absolute counts), and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003657.htm, accessed 2026-10-10 (Blood differential)",
+          "Etzell JE, CAP Today, March 2010, reporting the WBC differential in absolute numbers, https://www.captodayonline.com/Archives/0310/0310d_for_wbc_differentials.html, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "eosinophils": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Eosinophils",
+        "Eos"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        100
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories; the two published sources checked that list ranges give differing ranges (one gives percentages only; the other gives one laboratory's example values in percentages and in absolute counts and recommends absolute counts), and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003657.htm, accessed 2026-10-10 (Blood differential)",
+          "Etzell JE, CAP Today, March 2010, reporting the WBC differential in absolute numbers, https://www.captodayonline.com/Archives/0310/0310d_for_wbc_differentials.html, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "basophils": {
+      "standard_unit": "%",
+      "unit_aliases": [
+        "percent"
+      ],
+      "type": "not_staged",
+      "panel": "cbc",
+      "aliases": [
+        "Basophils",
+        "Baso"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        100
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. CBC reference intervals vary between laboratories; the two published sources checked that list ranges give differing ranges (one gives percentages only; the other gives one laboratory's example values in percentages and in absolute counts and recommends absolute counts), and the two real reports print different ranges. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003657.htm, accessed 2026-10-10 (Blood differential)",
+          "Etzell JE, CAP Today, March 2010, reporting the WBC differential in absolute numbers, https://www.captodayonline.com/Archives/0310/0310d_for_wbc_differentials.html, accessed 2026-10-10",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real hematology reports (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-10"
+        ],
+        "reviewed": "2026-10-10"
+      }
+    },
+    "urine_specific_gravity": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Specific Gravity",
+        "SG",
+        "Sp. Gr.",
+        "Urine Specific Gravity"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        1.0,
+        1.06
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. MedlinePlus, the ABIM reference list and an AAFP review give differing lower limits, and the one real report that prints a range prints a narrower range than any of them. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003587.htm, accessed 2026-10-13 (Urine specific gravity test)",
+          "Simerville JA, Maxted WC, Pahira JJ, Urinalysis: a comprehensive review, Am Fam Physician 2005;71(6):1153-1162, https://www.aafp.org/pubs/afp/issues/2005/0315/p1153.html, accessed 2026-10-13",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real urinalysis reports with readable results (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-13"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "urine_ph": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Reaction (pH)",
+        "Urine pH",
+        "Reaction"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        3.0,
+        10.0
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. MedlinePlus gives a different lower limit from the ABIM reference list and an AAFP review, which agree with each other, and the one real report that prints a pH range prints a narrower range than any of them. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003583.htm, accessed 2026-10-13 (Urine pH test)",
+          "Simerville JA, Maxted WC, Pahira JJ, Urinalysis: a comprehensive review, Am Fam Physician 2005;71(6):1153-1162, https://www.aafp.org/pubs/afp/issues/2005/0315/p1153.html, accessed 2026-10-13",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real urinalysis reports with readable results (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-13"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "urine_rbc": {
+      "standard_unit": "/hpf",
+      "unit_aliases": [
+        "hpf"
+      ],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urine RBC",
+        "Urine Red Blood Cells"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        1000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. One MedlinePlus page gives an upper limit per high-power field while another says red blood cells are not normally found in urine; the AUA/SUFU guideline defines microhematuria by a count threshold for further evaluation and notes that various thresholds are in use; of the two real reports, one prints a limit and one prints none. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003582.htm, accessed 2026-10-13 (RBC urine test)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003579.htm, accessed 2026-10-13 (Urinalysis)",
+          "American Urological Association and SUFU, Microhematuria guideline, 2020, amended 2025, https://www.auanet.org/documents/Guidelines/PDF/2025%20Guidelines/MH%20Unabridged%20FINAL.pdf, accessed 2026-10-13",
+          "Simerville JA, Maxted WC, Pahira JJ, Urinalysis: a comprehensive review, Am Fam Physician 2005;71(6):1153-1162, https://www.aafp.org/pubs/afp/issues/2005/0315/p1153.html, accessed 2026-10-13",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real urinalysis reports with readable results (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-13"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "urine_wbc": {
+      "standard_unit": "/hpf",
+      "unit_aliases": [
+        "hpf"
+      ],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Pus Cells",
+        "Urine WBC",
+        "Urine White Blood Cells"
+      ],
+      "result_kind": "numeric",
+      "plausible_range": [
+        0,
+        1000
+      ],
+      "default_ref_interval": null,
+      "default_ref_reason": {
+        "code": "no_universal_interval",
+        "text": "No universal interval. The only source checked that gives a count per high-power field (an AAFP review) gives different limits for men and women, MedlinePlus says white blood cells are not normally found in urine, and of the two real reports one prints a limit and one prints none. Only the range printed on the report is used; without one the result is indeterminate.",
+        "sources_checked": [
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003579.htm, accessed 2026-10-13 (Urinalysis)",
+          "MedlinePlus (A.D.A.M. encyclopedia), https://medlineplus.gov/ency/article/003584.htm, accessed 2026-10-13 (Leukocyte esterase urine test)",
+          "Simerville JA, Maxted WC, Pahira JJ, Urinalysis: a comprehensive review, Am Fam Physician 2005;71(6):1153-1162, https://www.aafp.org/pubs/afp/issues/2005/0315/p1153.html, accessed 2026-10-13",
+          "American Board of Internal Medicine, Laboratory Test Reference Ranges, revised January 2026, https://www.abim.org/Media/bfijryql/laboratory-reference-ranges.pdf, accessed 2026-10-13 (copy checked 2026-10-14; saved at MediTracker/docs/lab-ranges/laboratory-reference-ranges.pdf)",
+          "CLSI EP28-A3c, Defining, Establishing, and Verifying Reference Intervals in the Clinical Laboratory, 3rd ed., 2010, https://clsi.org/standards/products/method-evaluation/documents/ep28, accessed 2026-10-10 (abstract and secondary sources only; full text not read)",
+          "Two real urinalysis reports with readable results (sanitized OCR dumps), ml/tests/fixtures/mlkit/ground_truth.json, reviewed 2026-10-13"
+        ],
+        "reviewed": "2026-10-13"
+      }
+    },
+    "urine_glucose": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urine Glucose"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_protein": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urine Protein"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_ketones": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Ketones",
+        "Ketone Bodies"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_nitrite": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Nitrite"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_bilirubin": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urine Bilirubin"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_urobilinogen": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urobilinogen"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative",
+        "normal"
+      ]
+    },
+    "urine_blood": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urine Blood",
+        "Occult Blood"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_leukocytes": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Leucocytes",
+        "Leukocytes",
+        "Leukocyte Esterase"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "negative"
+      ]
+    },
+    "urine_casts": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Casts"
+      ],
+      "result_kind": "qualitative",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null,
+      "expected_values": [
+        "none",
+        "negative"
+      ]
+    },
+    "urine_color": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Urine Color"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "urine_transparency": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Transparency",
+        "Urine Appearance",
+        "Clarity"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "urine_epithelial_cells": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Epithelial Cells",
+        "Squamous Epithelial Cells"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "urine_renal_tubular_cells": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Renal Tubular Epithelial Cells",
+        "Renal Tubular Cells"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "urine_bacteria": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Bacteria"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "urine_crystals": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Crystals",
+        "Amorphous Urates",
+        "Amorphous Phosphates"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    },
+    "urine_mucus_threads": {
+      "standard_unit": null,
+      "unit_aliases": [],
+      "type": "not_staged",
+      "panel": "urinalysis",
+      "aliases": [
+        "Mucus Threads",
+        "Mucus"
+      ],
+      "result_kind": "descriptive",
+      "plausible_range": null,
+      "default_ref_interval": null,
+      "default_ref_reason": null
+    }
+  }
+}

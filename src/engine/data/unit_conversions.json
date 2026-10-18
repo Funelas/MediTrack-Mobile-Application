@@ -1,0 +1,170 @@
+{
+  "version": "1.1.0",
+  "description": "Explicit unit conversions applied by the parser before scoring. The reported value and unit are kept in the record next to the converted ones, and the reference range is converted with the same rule. Mass-to-molar factors are checked in tests against the molar mass (tests/test_schema_consistency.py).",
+  "linear": [
+    {
+      "canonical_code": "glucose_fasting",
+      "from_unit": "mmol/L",
+      "to_unit": "mg/dL",
+      "operation": "multiply",
+      "factor": 18.016,
+      "molar_mass_g_per_mol": 180.156,
+      "scale": 10,
+      "basis": "mg/dL = mmol/L x molar mass / 10 (glucose, 180.156 g/mol)"
+    },
+    {
+      "canonical_code": "glucose_random",
+      "from_unit": "mmol/L",
+      "to_unit": "mg/dL",
+      "operation": "multiply",
+      "factor": 18.016,
+      "molar_mass_g_per_mol": 180.156,
+      "scale": 10,
+      "basis": "mg/dL = mmol/L x molar mass / 10 (glucose, 180.156 g/mol)"
+    },
+    {
+      "canonical_code": "cholesterol_total",
+      "from_unit": "mmol/L",
+      "to_unit": "mg/dL",
+      "operation": "multiply",
+      "factor": 38.67,
+      "molar_mass_g_per_mol": 386.654,
+      "scale": 10,
+      "basis": "mg/dL = mmol/L x molar mass / 10 (cholesterol, 386.654 g/mol)"
+    },
+    {
+      "canonical_code": "ldl",
+      "from_unit": "mmol/L",
+      "to_unit": "mg/dL",
+      "operation": "multiply",
+      "factor": 38.67,
+      "molar_mass_g_per_mol": 386.654,
+      "scale": 10,
+      "basis": "mg/dL = mmol/L x molar mass / 10 (cholesterol, 386.654 g/mol)"
+    },
+    {
+      "canonical_code": "hdl",
+      "from_unit": "mmol/L",
+      "to_unit": "mg/dL",
+      "operation": "multiply",
+      "factor": 38.67,
+      "molar_mass_g_per_mol": 386.654,
+      "scale": 10,
+      "basis": "mg/dL = mmol/L x molar mass / 10 (cholesterol, 386.654 g/mol)"
+    },
+    {
+      "canonical_code": "triglycerides",
+      "from_unit": "mmol/L",
+      "to_unit": "mg/dL",
+      "operation": "multiply",
+      "factor": 88.57,
+      "molar_mass_g_per_mol": 885.43,
+      "scale": 10,
+      "basis": "mg/dL = mmol/L x 88.57, the reciprocal of 0.01129, the mg/dL-to-mmol/L factor in the CDC NHANES triglyceride documentation (1/0.01129 = 88.574). Triolein (885.43 g/mol) gives 885.43/10 = 88.543, 0.03 % lower; for results printed to two decimals in mmol/L the two factors give the same band."
+    },
+    {
+      "canonical_code": "creatinine",
+      "from_unit": "umol/L",
+      "to_unit": "mg/dL",
+      "operation": "divide",
+      "divisor": 88.4,
+      "molar_mass_g_per_mol": 113.12,
+      "scale": 10000,
+      "basis": "mg/dL = umol/L x molar mass / 10000 (creatinine, 113.12 g/mol)"
+    },
+    {
+      "canonical_code": "uric_acid",
+      "from_unit": "umol/L",
+      "to_unit": "mg/dL",
+      "operation": "divide",
+      "divisor": 59.48,
+      "molar_mass_g_per_mol": 168.11,
+      "scale": 10000,
+      "basis": "mg/dL = umol/L x molar mass / 10000 (uric acid, 168.11 g/mol)"
+    },
+    {
+      "canonical_code": "bilirubin_total",
+      "from_unit": "umol/L",
+      "to_unit": "mg/dL",
+      "operation": "divide",
+      "divisor": 17.1,
+      "molar_mass_g_per_mol": 584.66,
+      "scale": 10000,
+      "basis": "mg/dL = umol/L x molar mass / 10000 (bilirubin, 584.66 g/mol)"
+    },
+    {
+      "canonical_code": "free_t4",
+      "from_unit": "pmol/L",
+      "to_unit": "ng/dL",
+      "operation": "divide",
+      "divisor": 12.87,
+      "molar_mass_g_per_mol": 776.87,
+      "scale": 10000,
+      "basis": "ng/dL = pmol/L x molar mass / 10000 (thyroxine, 776.87 g/mol)"
+    },
+    {
+      "canonical_code": "free_t3",
+      "from_unit": "pmol/L",
+      "to_unit": "pg/mL",
+      "operation": "divide",
+      "divisor": 1.536,
+      "molar_mass_g_per_mol": 650.97,
+      "scale": 1000,
+      "basis": "pg/mL = pmol/L x molar mass / 1000 (triiodothyronine, 650.97 g/mol)"
+    },
+    {
+      "canonical_code": "hemoglobin",
+      "from_unit": "g/L",
+      "to_unit": "g/dL",
+      "operation": "divide",
+      "divisor": 10,
+      "molar_mass_g_per_mol": null,
+      "scale": null,
+      "basis": "exact: 10 g/L = 1 g/dL"
+    },
+    {
+      "canonical_code": "mchc",
+      "from_unit": "g/L",
+      "to_unit": "g/dL",
+      "operation": "divide",
+      "divisor": 10,
+      "molar_mass_g_per_mol": null,
+      "scale": null,
+      "basis": "exact: 10 g/L = 1 g/dL"
+    },
+    {
+      "canonical_code": "hematocrit",
+      "from_unit": "L/L",
+      "to_unit": "%",
+      "operation": "multiply",
+      "factor": 100,
+      "molar_mass_g_per_mol": null,
+      "scale": null,
+      "basis": "exact: a fraction of 1 expressed as a percentage"
+    }
+  ],
+  "affine": [
+    {
+      "canonical_code": "hba1c",
+      "from_unit": "mmol/mol",
+      "to_unit": "%",
+      "operation": "a*x+b",
+      "a": 0.09148,
+      "b": 2.152,
+      "basis": "NGSP/IFCC master equation: HbA1c(%) = 0.09148 x HbA1c(mmol/mol) + 2.152"
+    }
+  ],
+  "fraction_to_percent": {
+    "canonical_codes": [
+      "neutrophils",
+      "bands",
+      "lymphocytes",
+      "monocytes",
+      "eosinophils",
+      "basophils",
+      "hematocrit"
+    ],
+    "applies_when": "Project-defined (ML-29). convert_to_standard multiplies a value v with 0 <= v <= 1.0 by 100 when the code is listed here, the reported unit is missing, 'fraction' or 'L/L', and no linear rule matches (hematocrit in 'L/L' uses its linear rule, which has no 1.0 limit). The parser (parser._convert) converts a value and its printed range with this rule only when every printed bound is also at most 1.0, and, when no unit was printed, only when at least one bound is printed (read by OCR or typed from the report) and every bound is below 1.0. Otherwise the value is kept as printed.",
+    "factor": 100
+  }
+}
