@@ -1,0 +1,64 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+react {
+}
+
+android {
+    namespace "com.meditrack"
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    lint {
+        baseline = file("lint-baseline.xml")
+        abortOnError false
+    }
+    signingConfigs {
+        release {
+            storeFile file(MYAPP_UPLOAD_STORE_FILE)
+            storePassword MYAPP_UPLOAD_STORE_PASSWORD
+            keyAlias MYAPP_UPLOAD_KEY_ALIAS
+            keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.meditrack"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        ndk {
+            abiFilters "arm64-v8a", "x86_64"
+        }
+        manifestPlaceholders = [
+            appAuthRedirectScheme: "com.meditrack"
+        ]
+
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+    implementation("com.facebook.react:hermes-android")
+
+    // Google ML Kit Text Recognition
+    implementation("com.google.mlkit:text-recognition:16.0.0")
+    implementation project(':react-native-background-fetch')
+    implementation project(':notifee_react-native')
+
+    // OEM-aware battery optimization helper
+    implementation 'com.waseemsabir:betterypermissionhelper:1.0.3'
+}
+
+apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
