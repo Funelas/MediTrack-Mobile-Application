@@ -164,7 +164,7 @@
       "basophils",
       "hematocrit"
     ],
-    "applies_when": "Project-defined (ML-29). convert_to_standard multiplies a value v with 0 <= v <= 1.0 by 100 when the code is listed here, the reported unit is missing, 'fraction' or 'L/L', and no linear rule matches (hematocrit in 'L/L' uses its linear rule, which has no 1.0 limit). The parser (parser._convert) converts a value and its printed range with this rule only when every printed bound is also at most 1.0, and, when no unit was printed, only when at least one bound is printed (read by OCR or typed from the report) and every bound is below 1.0. Otherwise the value is kept as printed.",
+    "applies_when": "Project-defined (ML-29). convert_to_standard multiplies a value v with 0 <= v <= 1.0 by 100 when the code is listed here, the reported unit is missing, 'fraction' or 'L/L', and no linear rule matches (hematocrit in 'L/L' uses its linear rule, which has no 1.0 limit). The parser (parser._convert) converts a value and its printed range with this rule only when every printed bound is also at most 1.0, and, when no unit was printed, only when at least one bound is printed (read by OCR or typed from the report) and every bound is below 1.0. Otherwise the value is kept as printed, except that a hematocrit with no unit and no printed bound is inferred through its 'L/L' rule when the result is a plausible percentage (5-75), the parser notes this, and the row is asked about when no range is printed.",
     "factor": 100
   }
 }
