@@ -20,11 +20,23 @@ mobile/
 ├── android/                  # Native Android project and Gradle build configs
 ├── ios/                      # Native iOS project and CocoaPods specs
 ├── src/                      # Application source code
-│   ├── api/                  # Backend REST API client bindings
-│   ├── ble/                  # Bluetooth Low Energy client service
+│   ├── engine/               # On-device parser engine (TypeScript; Jest suites in __tests__/)
 │   ├── components/           # Reusable UI widgets and buttons
 │   ├── navigation/           # Screen stack and tab routing
 │   ├── screens/              # Patient UI screens (Home, LabScan, Diary, Reminders)
 │   └── utils/                # Helper utilities and formatters
 ├── package.json              # Dependencies and scripts
 └── README.md
+```
+
+---
+
+## Tests
+
+The on-device engine runs in Node, without a device:
+
+```bash
+# from MediTracker/mobile
+npm test                    # 14 engine suites (2026-10-23: 242 passed, 1 skipped)
+npm run typecheck:engine    # TypeScript check of src/engine
+```
