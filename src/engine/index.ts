@@ -1,5 +1,6 @@
-// The public API of the engine (ML-27/ML-28, S12; decision D20): re-exports only, no logic. processReport and scoring
-// wait for the next plan. The surface that the identity-filter port (MOB-02) uses stays in shared.ts.
+// The public API of the engine (ML-27/ML-28, S12; decision D20): re-exports only, no logic. Scoring is exported now
+// (plan step 8, U2). processReport and the re-score function wait for ML-13 (Contract B before or after confirmation;
+// visit_date). The surface that the identity-filter port (MOB-02) uses stays in shared.ts.
 // Plain TypeScript, no logging, no React Native, fs or path import.
 
 // Parsing
@@ -16,6 +17,10 @@ export {
   splitForReview,
 } from './parsing/review';
 
+// Scoring: which rows to pass (confirmed rows only, or all rows) is the open ML-13 decision.
+export { buildContractB } from './scoring/extensions';
+export type { ContractB, ContractBParameter, PanelScore, ParameterTrend, ResultRow } from './scoring/extensions';
+
 // Validation
-export { validateA, validatePayload } from './contracts/validate';
+export { checkParity, validateA, validateB, validateC, validatePayload } from './contracts/validate';
 export type { ValidationError, ValidationResult } from './contracts/validate';

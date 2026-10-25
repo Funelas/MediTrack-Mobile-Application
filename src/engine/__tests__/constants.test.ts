@@ -26,6 +26,7 @@ const DATA_FILES = [
   'unit_conversions.json',
   'identity_filter_config.json',
   'engine_constants.json',
+  'clinical_rules.json',
 ];
 const docsPresent = fs.existsSync(DOCS_CONSTANTS) && fs.existsSync(path.join(MOBILE_DIR, '..', 'docs', 'schemas'));
 const itWithDocs = docsPresent ? it : it.skip;

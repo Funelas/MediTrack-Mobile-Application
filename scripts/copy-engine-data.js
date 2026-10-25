@@ -4,7 +4,7 @@
  * Copies the data files the on-device engine reads into mobile/src/engine/data/ (ML-27/ML-28, plan section 6.5).
  * The copies are the source text with line endings normalized to LF, written as UTF-8 without a byte-order mark.
  *
- *   node scripts/copy-engine-data.js                 copy the four files
+ *   node scripts/copy-engine-data.js                 copy the five files
  *   node scripts/copy-engine-data.js --check         exit 1 and list the stale copies, else print "up to date"
  *   node scripts/copy-engine-data.js --dest <dir>    use <dir> instead of src/engine/data (works with --check)
  *
@@ -21,6 +21,7 @@ const FILES = [
   ['docs/schemas/unit_conversions.json', 'unit_conversions.json'],
   ['docs/identity_filter/identity_filter_config.json', 'identity_filter_config.json'],
   ['docs/engine_vectors/engine_constants.json', 'engine_constants.json'],
+  ['docs/engine_vectors/clinical_rules.json', 'clinical_rules.json'],
 ];
 
 const DEFAULT_SOURCE_ROOT = path.join(__dirname, '..', '..');
@@ -77,7 +78,7 @@ function findStale(sourceRoot, destDir) {
   return stale;
 }
 
-/** Writes the four copies into destDir (created if needed) and returns their names. */
+/** Writes the five copies into destDir (created if needed) and returns their names. */
 function copyFiles(sourceRoot, destDir) {
   fs.mkdirSync(destDir, { recursive: true });
   const names = [];

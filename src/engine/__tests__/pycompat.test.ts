@@ -4,6 +4,7 @@
 import { pyMean } from '../py/mean';
 import { pyRound } from '../py/round';
 import { firstMax, firstMin, pyMedian, stableSort } from '../py/sort';
+import { pySum } from '../py/sum';
 import {
   digitsToAscii,
   PY_DIGIT_CLASS,
@@ -22,7 +23,7 @@ import {
   pySplit,
   pyStrip,
 } from '../py/text';
-import { compareWithHeader, describeVectors, Json } from './helpers/vectors';
+import { compareWithHeader, decodeNonfinite, describeVectors, Json } from './helpers/vectors';
 
 type Fields = { [key: string]: Json };
 type Handler = (input: Fields) => Json;
@@ -46,6 +47,21 @@ function numbers(value: Json | undefined): number[] {
     throw new Error('expected a list field');
   }
   return value.map(num);
+}
+
+function sumTerms(value: Json | undefined): number[] {
+  if (!Array.isArray(value)) {
+    throw new Error('expected a list field');
+  }
+  return value.map((item) => num(decodeNonfinite(item)));
+}
+
+/** Exact equality for sum results: NaN equals NaN, -0 equals 0, numbers otherwise compare with ===. */
+function sameSum(expected: Json, actual: Json): boolean {
+  if (typeof expected !== 'number' || typeof actual !== 'number') {
+    return false;
+  }
+  return (Number.isNaN(expected) && Number.isNaN(actual)) || expected === actual;
 }
 
 // Regexes are built only from the exported helpers, never from the Python pattern text.
@@ -74,6 +90,7 @@ function regexResult(input: Fields): Json {
 
 const HANDLERS: { [fn: string]: Handler } = {
   round: (input) => pyRound(num(input.x), num(input.n)),
+  sum: (input) => pySum(sumTerms(input.xs)),
   'statistics.mean': (input) => pyMean(numbers(input.xs)),
   'statistics.median': (input) => pyMedian(numbers(input.xs)),
   'str.isspace': (input) => pyIsSpace(str(input.s)),
@@ -124,7 +141,9 @@ describeVectors('pycompat', (file) => {
         failed.push(c.id + ' (threw)');
         continue;
       }
-      if (compareWithHeader(file, c.expected, actual).length > 0) {
+      const different =
+        c.fn === 'sum' ? !sameSum(decodeNonfinite(c.expected), actual) : compareWithHeader(file, c.expected, actual).length > 0;
+      if (different) {
         failed.push(c.id);
       }
     }
@@ -149,6 +168,20 @@ describe('JavaScript behaviour the helpers hide', () => {
     expect(pyMean([5e-324, 0])).toBe(0);
     expect(pyMean([5e-324, 1e-323])).toBe(1e-323);
     expect(pyMean([Number.MAX_VALUE, Number.MAX_VALUE])).toBe(Number.MAX_VALUE);
+  });
+
+  it('a plain JavaScript sum is not the compensated sum of Python sum()', () => {
+    expect(1.1 + 3.5999999999999996 + 1.3).not.toBe(6);
+    expect(pySum([1.1, 3.5999999999999996, 1.3])).toBe(6);
+    expect(1e16 + 1 + 1).toBe(1e16);
+    expect(pySum([1e16, 1, 1])).toBe(1.0000000000000002e16);
+    expect(1 + 1e100 + 1 + -1e100).toBe(0);
+    expect(pySum([1, 1e100, 1, -1e100])).toBe(2);
+    expect(pySum([])).toBe(0);
+    expect(pySum([1e308, 1e308])).toBe(Infinity);
+    expect(Number.isNaN(pySum([NaN, 1]))).toBe(true);
+    expect(Number.isNaN(pySum([Infinity, -Infinity]))).toBe(true);
+    expect(Object.is(pySum([-0]), 0)).toBe(true);
   });
 
   it('Number() is not float()', () => {

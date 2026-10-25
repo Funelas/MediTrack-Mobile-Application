@@ -2,7 +2,7 @@
 
 /*
  * Builds the standalone JSON Schema validators the on-device engine uses (ML-27/ML-28, plan sections 6.1 and 6.6).
- * The sanitized OCR payload schema and the Contract A schema (docs/schemas) are compiled with Ajv (draft 2020-12,
+ * The sanitized OCR payload schema and the Contract A, B and C schemas (docs/schemas) are compiled with Ajv (draft 2020-12,
  * all errors, formats from ajv-formats) into one CommonJS module, src/engine/contracts/validators.generated.js,
  * so the app never compiles a schema at run time (no eval, no new Function). A small .d.ts is written beside it.
  *
@@ -27,6 +27,8 @@ const OUT_DIR = path.join(__dirname, '..', 'src', 'engine', 'contracts');
 const SCHEMAS = [
   ['validatePayload', 'ocr_payload_contract.json'],
   ['validateA', 'parsing_contract_template.json'],
+  ['validateB', 'scoring_output_contract.json'],
+  ['validateC', 'llm_phrasing_contract.json'],
 ];
 
 const DECLARATIONS = [
@@ -48,6 +50,8 @@ const DECLARATIONS = [
   '',
   'export const validatePayload: SchemaValidator;',
   'export const validateA: SchemaValidator;',
+  'export const validateB: SchemaValidator;',
+  'export const validateC: SchemaValidator;',
   '',
 ].join('\n');
 

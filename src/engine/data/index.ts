@@ -4,6 +4,7 @@ import constantsJson from './engine_constants.json';
 import dictionaryJson from './canonical_dictionary.json';
 import unitConversionsJson from './unit_conversions.json';
 import identityFilterConfigJson from './identity_filter_config.json';
+import clinicalRulesJson from './clinical_rules.json';
 
 export interface EngineConstants {
   version: number;
@@ -142,7 +143,48 @@ export interface IdentityFilterConfig {
   qualitative_words: string[];
 }
 
+// A number as stored in clinical_rules.json: JSON cannot hold an infinity, so the open upper bound of the last stage
+// is {"$number": "Infinity"} (the same convention as the vector files). scoring/rules.ts decodes it.
+export interface EncodedNumber {
+  $number: string;
+}
+
+// [threshold, label, penalty]: the first stage with value < threshold applies (strict <).
+export type RawStage = Array<number | string | EncodedNumber>;
+
+export interface RawClinicalRule {
+  unit: string;
+  polarity: number;
+  stages?: RawStage[]; // ascending thresholds, for analytes where high is worse
+  stages_desc?: RawStage[]; // for analytes where low is worse
+}
+
+export interface ClinicalRulesFile {
+  version: number;
+  generated_by: string;
+  status: string;
+  parser_version: string;
+  rule: string;
+  clinical_rules: Record<string, RawClinicalRule>;
+  extensions: {
+    band_precision: number;
+    project_defined_codes: string[];
+    unmapped_code: string;
+    negative_equivalent: string[];
+  };
+  scoring: {
+    ewma_alpha: number;
+    trend_stable_corridor: number;
+    glucose_low_limit: number;
+    min_scored_fraction: number;
+    alert_thresholds: { concerning: number; borderline: number };
+    deviation_bands: { normal: number; mild: number };
+    sources: Record<string, string[]>;
+  };
+}
+
 export const engineConstants: EngineConstants = constantsJson;
 export const dictionary: Dictionary = dictionaryJson;
 export const unitConversions: UnitConversions = unitConversionsJson;
 export const identityFilterConfig: IdentityFilterConfig = identityFilterConfigJson;
+export const clinicalRulesFile: ClinicalRulesFile = clinicalRulesJson;

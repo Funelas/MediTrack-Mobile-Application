@@ -16,3 +16,5 @@ export interface SchemaValidator {
 
 export const validatePayload: SchemaValidator;
 export const validateA: SchemaValidator;
+export const validateB: SchemaValidator;
+export const validateC: SchemaValidator;

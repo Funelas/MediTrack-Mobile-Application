@@ -100,6 +100,64 @@ export function compare(expected: Json, actual: Json, tolerance?: Tolerance | nu
   return diffs;
 }
 
+const NUMBER_KEY = '$number';
+
+/**
+ * value with each NaN or infinite number written as {"$number": "NaN" | "Infinity" | "-Infinity"} (JSON cannot hold
+ * them), recursively; mirrors encode_nonfinite in ml/tests/vectorgen/common.py.
+ */
+export function encodeNonfinite(value: Json): Json {
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+    return { [NUMBER_KEY]: Number.isNaN(value) ? 'NaN' : value > 0 ? 'Infinity' : '-Infinity' };
+  }
+  if (Array.isArray(value)) {
+    return value.map(encodeNonfinite);
+  }
+  if (isPlainObject(value)) {
+    const out: { [key: string]: Json } = {};
+    for (const key of Object.keys(value)) {
+      out[key] = encodeNonfinite(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Inverse of encodeNonfinite, recursively. An object that is exactly {"$number": text} with a text other than
+ * "NaN", "Infinity" or "-Infinity" is refused with an Error; mirrors decode_nonfinite in the Python helper.
+ */
+export function decodeNonfinite(value: Json): Json {
+  if (Array.isArray(value)) {
+    return value.map(decodeNonfinite);
+  }
+  if (isPlainObject(value)) {
+    const keys = Object.keys(value);
+    if (keys.length === 1 && keys[0] === NUMBER_KEY) {
+      const text = value[NUMBER_KEY];
+      if (text === 'NaN') {
+        return NaN;
+      }
+      if (text === 'Infinity') {
+        return Infinity;
+      }
+      if (text === '-Infinity') {
+        return -Infinity;
+      }
+      throw new Error('unknown encoded number');
+    }
+    const out: { [key: string]: Json } = {};
+    for (const key of keys) {
+      out[key] = decodeNonfinite(value[key]);
+    }
+    return out;
+  }
+  return value;
+}
+
 /** Parsed JSON of a file whose line endings may be CRLF or LF (decision D14); a byte-order mark is ignored. */
 export function readJsonNormalized(file: string): Json {
   const raw = fs.readFileSync(file, 'utf8');
