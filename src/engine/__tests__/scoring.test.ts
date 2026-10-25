@@ -186,15 +186,28 @@ describe('the functions do not change their inputs', () => {
   });
 });
 
-describe('meditrackerScoring.ts holds no scoring constant of its own', () => {
-  // The constants 0.3, 0.03, 70, 0.5 and 6 must come from rules.ts. The penalty 3 is typed only on the two lines that
-  // carry the marker comment "// T1" (penalty per severity) or "// T8" (the significant-penalty test). Block comments
-  // are removed and the line comment is cut off before a line is checked; the marker is read from the comment part.
-  const source = fs.readFileSync(path.resolve(__dirname, '..', 'scoring', 'meditrackerScoring.ts'), 'utf8');
+// The three files that hold scoring arithmetic. The label is the file name; the folder is read from the path.
+const SCANNED: [string, string[], boolean][] = [
+  // [label, path from src/engine, has a penalty 3 that must carry a marker]
+  ['meditrackerScoring.ts', ['scoring', 'meditrackerScoring.ts'], true],
+  ['extensions.ts', ['scoring', 'extensions.ts'], true],
+  ['sum.ts', ['py', 'sum.ts'], false],
+];
+
+describe.each(SCANNED)('%s holds no scoring constant of its own', (label, parts, hasThree) => {
+  // The constants 0.3, 0.03, 70, 0.5 and 6 must come from rules.ts, and so must the band precision 9 (BAND_PRECISION) in
+  // the two scoring files. The penalty 3 is typed only on lines that carry the marker comment "// T1" (penalty per
+  // severity) or "// T8" (the significant-penalty test). Block comments are removed and the line comment is cut off
+  // before a line is checked; the marker is read from the comment part. Other typed numbers are listed in the plan
+  // (section 6.4, table T1 to T15); the allow-list below holds only their values.
+  const source = fs.readFileSync(path.resolve(__dirname, '..', ...parts), 'utf8');
   const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, ' '));
   const lines = withoutBlocks.split(/\r?\n/);
   const FORBIDDEN = /(?<![\w.])(?:0\.03|0\.3|0\.5|70\.0|70|6\.0|6)(?![\w.])/;
+  const NINE = /(?<![\w.])9(?![\w.])/;
   const PENALTY_THREE = /(?<![\w.])(?:3\.0|3)(?![\w.])/;
+  const NUMBER = /(?<![\w.])\d+(?:\.\d+)?(?!\w)/g;
+  const ALLOWED = ['0', '1', '2', '3', '0.0', '1.0', '2.0', '100.0']; // the values of T1 to T15 (3 also needs its marker)
 
   function split(line: string): { code: string; comment: string } {
     const at = line.indexOf('//');
@@ -206,6 +219,13 @@ describe('meditrackerScoring.ts holds no scoring constant of its own', () => {
     expect(bad).toEqual([]);
   });
 
+  if (label !== 'sum.ts') {
+    it('has no bare 9 as a number in code (BAND_PRECISION is read from rules.ts)', () => {
+      const bad = lines.map((line, i) => (NINE.test(split(line).code) ? i + 1 : 0)).filter((n) => n > 0);
+      expect(bad).toEqual([]);
+    });
+  }
+
   it('has the number 3 only on lines marked T1 or T8', () => {
     const bad = lines
       .map((line, i) => {
@@ -216,8 +236,21 @@ describe('meditrackerScoring.ts holds no scoring constant of its own', () => {
     expect(bad).toEqual([]);
   });
 
-  it('finds the marked 3 at least once (the check can see a line)', () => {
-    const marked = lines.filter((line) => PENALTY_THREE.test(split(line).code));
-    expect(marked.length).toBeGreaterThan(0);
+  if (hasThree) {
+    it('finds the marked 3 at least once (the check can see a line)', () => {
+      const marked = lines.filter((line) => PENALTY_THREE.test(split(line).code));
+      expect(marked.length).toBeGreaterThan(0);
+    });
+  }
+
+  it('has no number in code other than 0, 1, 2, 3, 0.0, 1.0, 2.0 and 100.0', () => {
+    const bad = lines
+      .map((line, i) => ((split(line).code.match(NUMBER) ?? []).some((n) => !ALLOWED.includes(n)) ? i + 1 : 0))
+      .filter((n) => n > 0);
+    expect(bad).toEqual([]);
+  });
+
+  it('can see a number in code (the allow-list check can see a line)', () => {
+    expect(lines.some((line) => (split(line).code.match(NUMBER) ?? []).length > 0)).toBe(true);
   });
 });

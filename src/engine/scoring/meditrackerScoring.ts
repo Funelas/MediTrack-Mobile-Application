@@ -1,7 +1,7 @@
 // The frozen scoring functions of ml/scoring/meditracker_scoring.py, copied branch for branch (ML-28, plan step 5):
 // calculate_deviation, compute_trend and calculate_composite_health_score. The Python file is the reference and the
 // oracle; docs/engine_vectors/scoring.json pins every branch. Every scoring constant is read from rules.ts (decision
-// U1); the only numbers typed here are the ones named T1 to T10 in the plan, each with its Python line next to it.
+// U1); the only numbers typed here are the ones named T1 to T15 in the plan, each with its Python line next to it.
 // Plain TypeScript, no logging, no React Native, fs or path import. The inputs are never changed.
 import { pyRound } from '../py/round';
 import { pyLower, pyStrip } from '../py/text';
@@ -208,11 +208,11 @@ export function calculateDeviation(
   } else if (absD <= SCORING.deviation_bands.mild) {
     label = 'mild';
     sev = 1; // T1
-    direction = d > 0 ? 'high' : 'low'; // T13: L233 `d > 0`
+    direction = d > 0 ? 'high' : 'low'; // T14: L233 `d > 0`
   } else {
     label = 'significant';
     sev = 3; // T1
-    direction = d > 0 ? 'high' : 'low'; // T13
+    direction = d > 0 ? 'high' : 'low'; // T14: L236 `d > 0`
   }
 
   return deviationResult(testName, canonical, value, label, sev, direction, pyRound(d, 2)); // T2: L245
@@ -325,7 +325,7 @@ export function calculateCompositeHealthScore(
     }
   }
 
-  let totalPenalty = 0.0;
+  let totalPenalty = 0.0; // T15: L369
   const breakdown: BreakdownRow[] = [];
 
   for (const item of panelResults) {

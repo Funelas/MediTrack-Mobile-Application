@@ -2,7 +2,7 @@
 // expected-value rule, one-sided ranges, exact-limit banding on D rounded to BAND_PRECISION decimals (ML-11), the
 // evaluate_result wrapper with its range_basis label, the panel composite and the Contract B builder. The Python file is
 // the reference and the oracle; docs/engine_vectors/extensions.json pins every branch. Every scoring constant is read from
-// rules.ts (decision U1); the only numbers typed here are the ones named T1 to T13 in the plan, each marked next to its
+// rules.ts (decision U1); the only numbers typed here are the ones named T1 to T15 in the plan, each marked next to its
 // line. normalize_qualitative is the one in parsing/qualitative.ts (S6). The frozen functions are in
 // meditrackerScoring.ts and are not changed. Plain TypeScript, no logging, no React Native, fs or path import. The inputs
 // are never changed.
@@ -162,9 +162,9 @@ export function bandDeviation(value: number, refLow: number, refHigh: number): [
     return ['normal', 0, null]; // T1
   }
   if (absD <= SCORING.deviation_bands.mild) {
-    return ['mild', 1, d > 0 ? 'high' : 'low']; // T1, T13
+    return ['mild', 1, d > 0 ? 'high' : 'low']; // T1, T14
   }
-  return ['significant', 3, d > 0 ? 'high' : 'low']; // T1, T13
+  return ['significant', 3, d > 0 ? 'high' : 'low']; // T1, T14
 }
 
 /** calculateDeviation with the band re-derived from the rounded D; all guards and the deviation_score stay as the frozen function's. */
