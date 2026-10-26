@@ -1,17 +1,18 @@
-import React, {useEffect} from 'react';
+import React, {useEffect, useRef} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
-
+import {syncDatabase} from './src/sync/syncService';
+import {useAuth} from './src/context/AuthContext';
+import {supabase} from './src/lib/supabase';
 import {AuthProvider} from './src/context/AuthContext';
 import {DatabaseProvider} from '@nozbe/watermelondb/DatabaseProvider';
 import {database} from './src/database';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
-
 import {setupNotifications, rescheduleAllNotifications} from './src/notifications/notificationService';
 import {setupBackgroundTask, backgroundFetchHeadlessTask} from './src/notifications/backgroundTask';
 import BackgroundFetch from 'react-native-background-fetch';
 import notifee, {TriggerType, EventType} from '@notifee/react-native';
 import {upsertOccurrence} from './src/database/services';
-import {PermissionsAndroid, Platform} from 'react-native';
+import {AppState, PermissionsAndroid, Platform} from 'react-native';
 
 BackgroundFetch.registerHeadlessTask(backgroundFetchHeadlessTask);
 
@@ -99,6 +100,67 @@ notifee.onBackgroundEvent(async ({type, detail}) => {
   }
 });
 
+function SyncManager() {
+  const {user} = useAuth();
+  const syncTimeout = useRef<any>(null);
+
+  const debouncedSync = (userId: string) => {
+    if (syncTimeout.current) clearTimeout(syncTimeout.current);
+    syncTimeout.current = setTimeout(() => {
+      syncDatabase(userId).catch(console.warn);
+    }, 2000);
+  };
+
+  // Sync on foreground resume
+  useEffect(() => {
+    if (!user) return;
+
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        debouncedSync(user.id);
+      }
+    });
+
+    // Sync immediately when user logs in
+    syncDatabase(user.id).catch(console.warn);
+
+    return () => subscription.remove();
+  }, [user]);
+
+  // Sync when local database changes (any write operation)
+  useEffect(() => {
+    if (!user) return;
+
+    const subscription = database.withChangesForTables([
+      'medicines', 'intake_logs', 'tasks', 'occurrences',
+      'checkup_reports', 'test_results', 'categories',
+    ]).subscribe(changes => {
+      if (changes && changes.length > 0) {
+        debouncedSync(user.id);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [user]);
+
+  // Supabase Realtime — pull when remote changes
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('db-changes')
+      .on('postgres_changes', {event: '*', schema: 'public'}, () => {
+        debouncedSync(user.id);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  return null;
+}
 
 async function requestAllPermissions() {
   if (Platform.OS !== 'android') return;
@@ -137,6 +199,7 @@ export default function App() {
   return (
     <DatabaseProvider database={database}>
       <AuthProvider>
+        <SyncManager/>
         <NavigationContainer>
           <BottomTabNavigator />
         </NavigationContainer>

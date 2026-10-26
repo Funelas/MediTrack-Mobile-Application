@@ -11,9 +11,12 @@ const TABLES = [
   'test_results',
   'categories',
 ];
-
+let isSyncing = false;
 export async function syncDatabase(userId: string): Promise<void> {
-  await synchronize({
+  if (isSyncing) return;
+  isSyncing = true;
+  try {
+    await synchronize({
     database,
 
     pullChanges: async ({lastPulledAt}) => {
@@ -46,8 +49,8 @@ export async function syncDatabase(userId: string): Promise<void> {
           rows.map(({user_id, last_modified, deleted: _d, _status, _changed, ...rest}) => rest);
 
         changes[table] = {
-          created: clean(upserted ?? []),
-          updated: [],
+          created: [],
+          updated: clean(upserted ?? []),
           deleted: (deleted ?? []).map(r => r.id),
         };
       }
@@ -89,6 +92,9 @@ export async function syncDatabase(userId: string): Promise<void> {
       }
     },
 
-    migrationsEnabledAtVersion: 7,
-  });
+   migrationsEnabledAtVersion: 7,
+    });
+  } finally {
+    isSyncing = false;
+  }
 }

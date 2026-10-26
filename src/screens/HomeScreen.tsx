@@ -356,7 +356,9 @@ export default function HomeScreen() {
               <Bell width={s(28)} height={s(28)} color="#26292C" />
             </View>
           </View>
-          <Text className="text-white text-2xl font-bold">Welcome back, {firstName && ''}!</Text>
+          <Text className="text-white text-2xl font-bold">
+            {user ? `Welcome back, ${firstName}!` : 'Welcome back!'}
+          </Text>
           <Text className="text-teal-100 text-sm mt-1">
             Today: {new Date().toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'})}
           </Text>
