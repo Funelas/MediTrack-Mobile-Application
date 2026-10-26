@@ -161,6 +161,7 @@ describe('visit date (row D-1)', () => {
     expect(isVisitDate('2028-02-29', later)).toBe(true);
     expect(isVisitDate('2100-02-29', new Date(2200, 0, 1))).toBe(false);
     expect(isVisitDate('2000-02-29', later)).toBe(true);
+    expect(isVisitDate('1900-02-29', later)).toBe(false);
   });
 
   it('accepts today and earlier days, and rejects tomorrow and later', () => {
@@ -180,12 +181,14 @@ describe('visit date (row D-1)', () => {
     expect(isVisitDate('2026-07-10', justAfterMidnight)).toBe(false);
   });
 
-  it('keeps years 0000-0099 as written instead of mapping them to 19xx', () => {
-    expect(isVisitDate('0026-07-08', NOW)).toBe(true);
-    expect(isVisitDate('0000-01-01', NOW)).toBe(true);
-    expect(isVisitDate('0000-02-29', NOW)).toBe(true);
-    expect(isVisitDate('0001-02-29', NOW)).toBe(false);
-    expect(isVisitDate('0099-12-31', NOW)).toBe(true);
+  it('rejects years before 1900', () => {
+    expect(isVisitDate('0000-01-01', NOW)).toBe(false);
+    expect(isVisitDate('0000-02-29', NOW)).toBe(false);
+    expect(isVisitDate('0026-07-08', NOW)).toBe(false);
+    expect(isVisitDate('0099-12-31', NOW)).toBe(false);
+    expect(isVisitDate('1899-12-31', NOW)).toBe(false);
+    expect(isVisitDate('1900-01-01', NOW)).toBe(true);
+    expect(isVisitDate('1999-12-31', NOW)).toBe(true);
   });
 });
 

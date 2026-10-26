@@ -3,6 +3,9 @@
 
 const VISIT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Lowest accepted year. An earlier year is a misread (0000, or a two-digit year written as 00xx), not a visit. */
+export const MIN_VISIT_YEAR = 1900;
+
 function twoDigits(value: number): string {
   return value < 10 ? '0' + value : String(value);
 }
@@ -14,19 +17,22 @@ export function toVisitDate(date: Date): string {
 }
 
 /**
- * True when text is a real calendar day written YYYY-MM-DD and is not later than today's local calendar day. A shape
- * mismatch, a day that does not exist (2026-02-29, 2026-04-31, 2026-13-45, a zero month or day) and a future day are all
- * false. Today itself is true. `today` is a parameter so that a caller or test can fix the clock.
+ * True when text is a real calendar day written YYYY-MM-DD, in a year of MIN_VISIT_YEAR (1900) or later, and not later
+ * than today's local calendar day. A shape mismatch, a year before 1900 (0000-01-01, 0026-07-08), a day that does not
+ * exist (2026-02-29, 2026-04-31, 2026-13-45, a zero month or day) and a future day are all false. Today itself is true. `today` is a parameter so that a caller or test can fix the clock.
  */
 export function isVisitDate(text: string, today: Date = new Date()): boolean {
   if (!VISIT_DATE_PATTERN.test(text)) {
     return false;
   }
   const year = Number(text.slice(0, 4));
+  if (year < MIN_VISIT_YEAR) {
+    return false;
+  }
   const month = Number(text.slice(5, 7));
   const day = Number(text.slice(8, 10));
   const built = new Date(2000, 0, 1);
-  // setFullYear keeps years 0000-0099 as written; the Date constructor would map them to 1900-1999.
+  // With the year bound the Date constructor would also do; setFullYear is kept so that years 0000-0099 are never remapped.
   built.setFullYear(year, month - 1, day);
   if (built.getFullYear() !== year || built.getMonth() !== month - 1 || built.getDate() !== day) {
     return false;
