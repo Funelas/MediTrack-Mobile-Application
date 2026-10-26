@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.engine.json",
+  "include": ["src/scan/**/*", "src/engine/**/*"]
+}

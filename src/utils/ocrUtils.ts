@@ -166,8 +166,6 @@ export function parseOCRText(
       if (nums) allValues.push(...nums);
     }
 
-    console.log('=== COLUMNAR VALUES EXTRACTED ===', allValues);
-
     // Map each matched field (in order of appearance) to a value by index
     let valueIdx = 0;
     const ordered = [...matchLineIndexes]
