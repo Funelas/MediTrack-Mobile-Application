@@ -1,12 +1,12 @@
 // toSavedReport (MOB-03 step 8). The e1 case (row_E1_e1_manifest_history of docs/engine_vectors/endtoend.json) and every case
-// of ml/tests/fixtures/mlkit/engine_vectors/real_pages_scoring.json go through readPayload, scoreRows and toSavedReport.
+// of ml/tests/fixtures/mlkit/engine_vectors/real_pages_scoring.json go through readPayload, scoreRowsForTests (the vector weights) and toSavedReport.
 // Expected values are read from the Contract B of the scored result, not typed here. The real-page files hold sanitized
 // report text, so those tests report counts and case ids only, and they are skipped when the files are absent.
 import * as fs from 'fs';
 import * as path from 'path';
 import { Json, loadVectorFile, readJsonNormalized } from '../../engine/__tests__/helpers/vectors';
 import { statusFor } from '../display';
-import { ReadResult, readPayload, RowPair, ScoreResult, scoreRows } from '../runEngine';
+import { ReadResult, readPayload, RowPair, ScoreResult, scoreRowsForTests } from '../runEngine';
 import { SavedRow, toSavedReport } from '../saveRows';
 
 type Obj = { [key: string]: Json };
@@ -57,7 +57,7 @@ function checkCase(id: string, payloads: { [key: string]: Json }, source: ParseC
   if (read.kind !== 'read') {
     return [id + ': not read'];
   }
-  const scored = scoreRows(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
+  const scored = scoreRowsForTests(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
   if (scored.kind !== 'scored') {
     return [id + ': not scored'];
   }
@@ -136,7 +136,7 @@ describe('toSavedReport on the e1 case', () => {
     if (read.kind !== 'read') {
       return;
     }
-    const scored = scoreRows(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
+    const scored = scoreRowsForTests(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
     const before = JSON.stringify([read.record, scored]);
     toSavedReport(scored, read.record);
     expect(JSON.stringify([read.record, scored])).toBe(before);

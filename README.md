@@ -37,6 +37,7 @@ The on-device engine runs in Node, without a device:
 
 ```bash
 # from MediTracker/mobile
-npm test                    # 20 engine suites (2026-10-25: 397 passed, 1 skipped)
+npm test                    # 27 suites (2026-10-26: 540 passed, 1 skipped; 20 engine suites at 397, 7 src/scan suites)
 npm run typecheck:engine    # TypeScript check of src/engine
+npm run typecheck:scan      # TypeScript check of src/scan (and src/engine)
 ```

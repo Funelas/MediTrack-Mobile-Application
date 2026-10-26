@@ -37,6 +37,8 @@ export interface ReadContext {
   visitId: string;
   visitDate: string;
   sex: string | null;
+  /** The clock for the future-date check; defaults to now. Tests pass a fixed one. */
+  today?: Date;
 }
 
 export type ReadResult =
@@ -68,12 +70,12 @@ export function filterScan(pages: RawPage[], filter: IdentityFilter): FilterScan
 }
 
 /**
- * Parses a sanitized payload with the date the user confirmed (D5: the payload's own date is never used here, so an empty
- * or malformed date is `date_required`). The sex comes from the profile and may be null (D6); no scoring weights are
- * passed (D7). An invalid payload or any parser exception is `could_not_read`, with no message.
+ * Parses a sanitized payload with the date the user confirmed (D5: the payload's own date is never used here, so an empty,
+ * malformed, nonexistent or future date is `date_required`). The sex comes from the profile and may be null (D6); no
+ * scoring weights are passed (D7). An invalid payload or any parser exception is `could_not_read`, with no message.
  */
 export function readPayload(payload: unknown, ctx: ReadContext): ReadResult {
-  if (typeof ctx.visitDate !== 'string' || !isVisitDate(ctx.visitDate)) {
+  if (typeof ctx.visitDate !== 'string' || !isVisitDate(ctx.visitDate, ctx.today)) {
     return { kind: 'date_required' };
   }
   try {
@@ -141,16 +143,12 @@ export function pairRows(results: readonly Row[], contractB: ContractB): RowPair
   return pairs;
 }
 
-/**
- * Scores every row as if confirmed (ML-13 is undecided), checks the Contract B, and pairs it with the rows. An invalid
- * Contract B, a pairing mismatch or any exception is `could_not_read`, with no message. `weights` is for tests only: the
- * app passes none (D7).
- */
-export function scoreRows(
+/** The scoring body shared by scoreRows and scoreRowsForTests; `weights` is undefined for the app. */
+function scoreWith(
   results: readonly Row[],
   visitDate: string,
   history: { readonly [code: string]: readonly unknown[] } | null,
-  weights?: { readonly [code: string]: unknown } | null,
+  weights: { readonly [code: string]: unknown } | null | undefined,
 ): ScoreResult {
   try {
     const contractB = buildContractB(visitDate, results as readonly ResultRow[], history, weights);
@@ -165,4 +163,27 @@ export function scoreRows(
   } catch {
     return { kind: 'could_not_read' };
   }
+}
+
+/**
+ * Scores every row as if confirmed (ML-13 is undecided), checks the Contract B, and pairs it with the rows. An invalid
+ * Contract B, a pairing mismatch or any exception is `could_not_read`, with no message. It takes no weights: the app
+ * passes none (D7).
+ */
+export function scoreRows(
+  results: readonly Row[],
+  visitDate: string,
+  history: { readonly [code: string]: readonly unknown[] } | null,
+): ScoreResult {
+  return scoreWith(results, visitDate, history, undefined);
+}
+
+/** scoreRows with the weights of a vector case. For tests only: the app must not call it. */
+export function scoreRowsForTests(
+  results: readonly Row[],
+  visitDate: string,
+  history: { readonly [code: string]: readonly unknown[] } | null,
+  weights: { readonly [code: string]: unknown } | null,
+): ScoreResult {
+  return scoreWith(results, visitDate, history, weights);
 }

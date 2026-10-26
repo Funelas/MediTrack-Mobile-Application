@@ -1,6 +1,6 @@
 // applyRangeAnswer, scoreRows and pairRows (MOB-03 step 5). Every case of docs/engine_vectors/endtoend.json and of
 // ml/tests/fixtures/mlkit/engine_vectors/real_pages_scoring.json is replayed through readPayload and scoreRows, with the
-// history and weights of the case. The real-page files hold sanitized report text, so this test reports counts and case
+// history and weights of the case (the weights go through scoreRowsForTests, which only tests may call). The real-page files hold sanitized report text, so this test reports counts and case
 // ids only, never text, and it is skipped for those files when they are absent. Expected values are read from the vector
 // files, not typed here. A parse case with no date of its own is read with the date of its expected record (the
 // payload's own date, as a user who confirms the candidate would give); the result is the same as the vector's.
@@ -16,7 +16,7 @@ import {
   Tolerance,
   VectorFile,
 } from '../../engine/__tests__/helpers/vectors';
-import { applyRangeAnswer, pairRows, ReadResult, readPayload, scoreRows } from '../runEngine';
+import { applyRangeAnswer, pairRows, ReadResult, readPayload, scoreRows, scoreRowsForTests } from '../runEngine';
 
 type Obj = { [key: string]: Json };
 type History = { readonly [code: string]: readonly unknown[] };
@@ -83,7 +83,7 @@ function replay(
       totals.failed.push(c.id);
       return;
     }
-    const out = scoreRows(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
+    const out = scoreRowsForTests(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
     if (out.kind !== 'scored' || same(c.expected.contract_b, out.contractB as unknown as Json).length > 0) {
       totals.failed.push(c.id);
       return;
@@ -182,7 +182,7 @@ describe('pairing (plan D9)', () => {
       if (read.kind !== 'read') {
         continue;
       }
-      const out = scoreRows(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
+      const out = scoreRowsForTests(read.record.results, read.record.visit_date as string, c.input.history, c.input.weights);
       if (out.kind === 'scored' && out.pairs.length >= 2) {
         return { results: read.record.results, contractB: out.contractB };
       }
@@ -236,6 +236,12 @@ describe('pairing (plan D9)', () => {
     const firstSupported = rows.findIndex((r) => r.supported === true);
     rows[firstSupported].test_name = rows[firstSupported].test_name + ' x';
     expect(pairRows(rows, s.contractB)).toBeNull();
+  });
+});
+
+describe('scoreRows signature (decision D7)', () => {
+  it('takes three arguments and no weights', () => {
+    expect(scoreRows.length).toBe(3);
   });
 });
 

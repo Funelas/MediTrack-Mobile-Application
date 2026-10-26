@@ -106,6 +106,20 @@ describe('readPayload', () => {
     expect(readPayload({}, { ...ctx, visitDate: '3/4/2026' })).toEqual({ kind: 'date_required' });
   });
 
+  it('gives date_required for a date that does not exist or is in the future, with an injected clock', () => {
+    const today = new Date(2026, 9, 26, 12, 0);
+    ['2026-13-45', '2026-02-29', '2026-04-31', '2026-00-10', '2026-01-00', '2026-10-27', '2027-01-01'].forEach((visitDate) => {
+      expect(readPayload({}, { ...ctx, visitDate, today })).toEqual({ kind: 'date_required' });
+    });
+  });
+
+  it('passes the date step for a past date and for today with an injected clock', () => {
+    const today = new Date(2026, 9, 26, 12, 0);
+    ['2026-03-04', '2026-10-26'].forEach((visitDate) => {
+      expect(readPayload({}, { ...ctx, visitDate, today })).toEqual({ kind: 'could_not_read' });
+    });
+  });
+
   it('gives could_not_read for an invalid payload, with no message or error field', () => {
     const out = readPayload({}, ctx);
     expect(out).toEqual({ kind: 'could_not_read' });
@@ -131,6 +145,47 @@ describe('visit date (row D-1)', () => {
     expect(isVisitDate('')).toBe(false);
     expect(isVisitDate('2026-7-8')).toBe(false);
     expect(isVisitDate('2026-07-08 ')).toBe(false);
+  });
+
+  const NOW = new Date(2026, 6, 8, 12, 0);
+
+  it('rejects a date that does not exist', () => {
+    ['2026-13-45', '2026-02-29', '2026-04-31', '2026-00-10', '2026-01-00', '2026-02-30', '2026-06-31'].forEach((text) => {
+      expect(isVisitDate(text, NOW)).toBe(false);
+    });
+  });
+
+  it('treats 29 February by the leap-year rule', () => {
+    const later = new Date(2030, 0, 1);
+    expect(isVisitDate('2026-02-29', later)).toBe(false);
+    expect(isVisitDate('2028-02-29', later)).toBe(true);
+    expect(isVisitDate('2100-02-29', new Date(2200, 0, 1))).toBe(false);
+    expect(isVisitDate('2000-02-29', later)).toBe(true);
+  });
+
+  it('accepts today and earlier days, and rejects tomorrow and later', () => {
+    expect(isVisitDate('2026-07-08', NOW)).toBe(true);
+    expect(isVisitDate('2026-07-07', NOW)).toBe(true);
+    expect(isVisitDate('2026-07-09', NOW)).toBe(false);
+    expect(isVisitDate('2026-08-01', NOW)).toBe(false);
+    expect(isVisitDate('2027-01-01', NOW)).toBe(false);
+  });
+
+  it('uses the local calendar day of the clock, also at the end of the day', () => {
+    const lateEvening = new Date(2026, 6, 8, 23, 59);
+    expect(isVisitDate('2026-07-08', lateEvening)).toBe(true);
+    expect(isVisitDate('2026-07-09', lateEvening)).toBe(false);
+    const justAfterMidnight = new Date(2026, 6, 9, 0, 1);
+    expect(isVisitDate('2026-07-09', justAfterMidnight)).toBe(true);
+    expect(isVisitDate('2026-07-10', justAfterMidnight)).toBe(false);
+  });
+
+  it('keeps years 0000-0099 as written instead of mapping them to 19xx', () => {
+    expect(isVisitDate('0026-07-08', NOW)).toBe(true);
+    expect(isVisitDate('0000-01-01', NOW)).toBe(true);
+    expect(isVisitDate('0000-02-29', NOW)).toBe(true);
+    expect(isVisitDate('0001-02-29', NOW)).toBe(false);
+    expect(isVisitDate('0099-12-31', NOW)).toBe(true);
   });
 });
 
