@@ -3,5 +3,9 @@ module.exports = {
   plugins: [
     'nativewind/babel',
     ['@babel/plugin-proposal-decorators', {version: 'legacy'}],
+    ['module:react-native-dotenv', {
+      moduleName: '@env',
+      path: '.env',
+    }],
   ],
 };

@@ -8,9 +8,10 @@ import Occurrence from './models/Occurrence';
 import CheckupReport from './models/CheckupReport';
 import TestResult from './models/TestResult';
 import Category from './models/Category';
-
+import {migrations} from './migrations';
 const adapter = new SQLiteAdapter({
   schema,
+  migrations,
   dbName: 'meditrack',
   jsi: false,
   onSetUpError: error => {

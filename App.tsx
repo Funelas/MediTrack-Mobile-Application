@@ -1,8 +1,11 @@
 import React, {useEffect} from 'react';
 import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {AuthProvider} from './src/context/AuthContext';
 import {DatabaseProvider} from '@nozbe/watermelondb/DatabaseProvider';
 import {database} from './src/database';
 import BottomTabNavigator from './src/navigation/BottomTabNavigator';
+import AuthScreen from './src/screens/AuthScreen';
 import {setupNotifications, rescheduleAllNotifications} from './src/notifications/notificationService';
 import {setupBackgroundTask, backgroundFetchHeadlessTask} from './src/notifications/backgroundTask';
 import BackgroundFetch from 'react-native-background-fetch';
@@ -114,6 +117,8 @@ async function requestAllPermissions() {
   await PermissionsAndroid.requestMultiple(permissions);
 }
 
+const RootStack = createNativeStackNavigator();
+
 export default function App() {
   useEffect(() => {
     (async () => {
@@ -131,9 +136,18 @@ export default function App() {
 
   return (
     <DatabaseProvider database={database}>
-      <NavigationContainer>
-        <BottomTabNavigator />
-      </NavigationContainer>
+      <AuthProvider>
+        <NavigationContainer>
+          <RootStack.Navigator screenOptions={{headerShown: false}}>
+            <RootStack.Screen name="Main" component={BottomTabNavigator} />
+            <RootStack.Screen
+              name="AuthScreen"
+              component={AuthScreen}
+              options={{presentation: 'modal'}}
+            />
+          </RootStack.Navigator>
+        </NavigationContainer>
+      </AuthProvider>
     </DatabaseProvider>
   );
 }

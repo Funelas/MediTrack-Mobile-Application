@@ -30,3 +30,5 @@ DerivedData/
 .env.*
 reference_imgs/
 GUIDE.md
+
+.env

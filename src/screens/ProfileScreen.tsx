@@ -1,17 +1,16 @@
 import React, {useState} from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  SafeAreaView,
-  Switch,
+  View, Text, ScrollView, TouchableOpacity,
+  SafeAreaView, Switch, Alert, ActivityIndicator,
 } from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import Bell from '../assets/svg_icons/bell.svg';
 import QR from '../assets/svg_icons/qr.svg';
 import Heart from '../assets/svg_icons/heart.svg';
 import Pills from '../assets/svg_icons/pills.svg';
 import Arrow from '../assets/svg_icons/arrow.svg';
+import {useAuth} from '../context/AuthContext';
+import {syncDatabase} from '../sync/syncService';
 
 // Placeholder data
 const USER = {
@@ -69,7 +68,28 @@ function Divider() {
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [lowStockEnabled, setLowStockEnabled] = useState(true);
-
+  const {user, signOut} = useAuth();
+  const [syncing, setSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const navigation = useNavigation<any>();
+  const handleSync = async () => {
+    if (!user) {
+      // Not logged in — navigate to AuthScreen
+      // (wire navigation here once you add AuthScreen to your navigator)
+      navigation.navigate('AuthScreen' as any);
+      return;
+    }
+    setSyncing(true);
+    try {
+        await syncDatabase(user.id);
+        setLastSynced(new Date());
+        Alert.alert('Sync Complete', 'Your data has been synced successfully.');
+    } catch (e: any) {
+      Alert.alert('Sync Failed', e.message ?? 'Something went wrong.');
+    } finally {
+      setSyncing(false);
+    }
+  };
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -81,28 +101,50 @@ export default function ProfileScreen() {
 
         {/* Avatar Card */}
         <View className="px-4 mb-4">
-          <View className="bg-white rounded-2xl p-4 shadow-sm flex-row items-center gap-4">
-            <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
-              <Text className="text-teal-600 text-2xl font-bold">
-                {USER.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </Text>
+          {!user ? (
+            // ── Not logged in ──
+            <View className="bg-white rounded-2xl p-5 shadow-sm items-center gap-3">
+              <View className="w-16 h-16 rounded-full bg-gray-100 items-center justify-center">
+                <Text className="text-3xl">☁️</Text>
+              </View>
+              <View className="items-center">
+                <Text className="text-gray-800 text-base font-bold">Back up your data</Text>
+                <Text className="text-gray-400 text-xs text-center mt-1 px-4">
+                  Sign in to sync your medicines, schedules, and checkup results across devices.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AuthScreen' as any)}
+                className="bg-teal-500 rounded-xl px-6 py-2.5 mt-1">
+                <Text className="text-white text-sm font-semibold">Sign In / Register</Text>
+              </TouchableOpacity>
             </View>
-            <View className="flex-1">
-              <Text className="text-gray-800 text-base font-bold">{USER.name}</Text>
-              <Text className="text-gray-400 text-xs mt-0.5">{USER.email}</Text>
-              <View className="flex-row gap-3 mt-2">
-                <View className="bg-teal-50 rounded-lg px-2 py-1">
-                  <Text className="text-teal-600 text-xs font-medium">Age {USER.age}</Text>
-                </View>
-                <View className="bg-teal-50 rounded-lg px-2 py-1">
-                  <Text className="text-teal-600 text-xs font-medium">Blood Type {USER.bloodType}</Text>
+          ) : (
+            // ── Logged in ──
+            <View className="bg-white rounded-2xl p-4 shadow-sm flex-row items-center gap-4">
+              <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
+                <Text className="text-teal-600 text-2xl font-bold">
+                  {user.email?.slice(0, 2).toUpperCase()}
+                </Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-gray-800 text-base font-bold">{user.email}</Text>
+                <View className="flex-row items-center gap-1.5 mt-1">
+                  <View
+                    style={{
+                      width: 8, height: 8, borderRadius: 4,
+                      backgroundColor: lastSynced ? '#34d399' : '#d1d5db',
+                    }}
+                  />
+                  <Text className="text-gray-400 text-xs">
+                    {lastSynced
+                      ? `Last synced ${lastSynced.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})}`
+                      : 'Not synced yet — tap Sync Now'}
+                  </Text>
                 </View>
               </View>
             </View>
-            <TouchableOpacity className="p-2">
-              <Text className="text-teal-500 text-sm font-semibold">Edit</Text>
-            </TouchableOpacity>
-          </View>
+          )}
         </View>
 
         <View className="px-4 gap-4 pb-8">
@@ -256,12 +298,29 @@ export default function ProfileScreen() {
                 onPress={() => {}}
               />
               <Divider />
-              <TouchableOpacity className="flex-row items-center gap-3 px-4 py-3.5">
-                <View className="w-9 h-9 rounded-xl bg-red-50 items-center justify-center">
-                  <Text className="text-red-400 text-base">↩</Text>
-                </View>
-                <Text className="flex-1 text-red-400 text-sm font-medium">Log Out</Text>
-              </TouchableOpacity>
+              <SettingRow
+                icon={
+                  syncing
+                    ? <ActivityIndicator size="small" color="#14B8A6" />
+                    : <Text className="text-teal-500 text-base">↑↓</Text>
+                }
+                iconBg="#F0FDFA"
+                label={syncing ? 'Syncing...' : user ? 'Sync Now' : 'Sign In to Sync'}
+                onPress={handleSync}
+              />
+              {user && (
+                <>
+                  <Divider />
+                  <TouchableOpacity
+                    onPress={signOut}
+                    className="flex-row items-center gap-3 px-4 py-3.5">
+                    <View className="w-9 h-9 rounded-xl bg-red-50 items-center justify-center">
+                      <Text className="text-red-400 text-base">↩</Text>
+                    </View>
+                    <Text className="flex-1 text-red-400 text-sm font-medium">Log Out</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
 
