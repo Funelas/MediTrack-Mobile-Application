@@ -18,6 +18,7 @@ import Check from '../assets/svg_icons/check.svg';
 import CircularProgress from '../components/CircularProgress';
 import ScheduleItemCard from '../components/ScheduleItemCard';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
+import {useAuth} from '../context/AuthContext';
 import {getItemsForDay, upsertOccurrence, VirtualItem, getCheckupReports} from '../database/services';
 
 const healthSummary = {
@@ -79,7 +80,6 @@ function NextUpCard({
   const {width} = useWindowDimensions();
   const scale = width / 390;
   const s = (n: number) => Math.round(n * scale);
-  const navigation = useNavigation<any>();
   const barAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -283,7 +283,11 @@ export default function HomeScreen() {
   const iconMd = s(20);
   const iconLg = s(35);
   const navigation = useNavigation<any>();
-
+  const {user} = useAuth();
+  const firstName = user?.user_metadata?.given_name
+    ?? user?.user_metadata?.full_name?.split(' ')[0]
+    ?? user?.email?.split('@')[0]
+    ?? '';
   const [todayItems, setTodayItems] = useState<VirtualItem[]>([]);
   const [hasReports, setHasReports] = useState<boolean | null>(null);
   const [now, setNow] = useState(new Date());
@@ -352,7 +356,7 @@ export default function HomeScreen() {
               <Bell width={s(28)} height={s(28)} color="#26292C" />
             </View>
           </View>
-          <Text className="text-white text-2xl font-bold">Welcome back, User!</Text>
+          <Text className="text-white text-2xl font-bold">Welcome back, {firstName && ''}!</Text>
           <Text className="text-teal-100 text-sm mt-1">
             Today: {new Date().toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'})}
           </Text>

@@ -122,11 +122,15 @@ export default function ProfileScreen() {
             <View className="bg-white rounded-2xl p-4 shadow-sm flex-row items-center gap-4">
               <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
                 <Text className="text-teal-600 text-2xl font-bold">
-                  {user.email?.slice(0, 2).toUpperCase()}
+                  {(user.user_metadata?.given_name ?? user.email ?? '?')
+                    .slice(0, 2).toUpperCase()}
                 </Text>
               </View>
               <View className="flex-1">
-                <Text className="text-gray-800 text-base font-bold">{user.email}</Text>
+                <Text className="text-gray-800 text-base font-bold">
+                  {user.user_metadata?.full_name ?? user.user_metadata?.given_name ?? 'User'}
+                </Text>
+                <Text className="text-gray-400 text-xs mt-0.5">{user.email}</Text>
                 <View className="flex-row items-center gap-1.5 mt-1">
                   <View
                     style={{
