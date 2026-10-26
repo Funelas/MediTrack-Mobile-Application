@@ -12,10 +12,10 @@ export const schema = appSchema({
         {name: 'color', type: 'string'},
         {name: 'form', type: 'string'},
         {name: 'dosage', type: 'string'},
-        {name: 'intake_times', type: 'string'},       // JSON array e.g. ["08:00","20:00"]
+        {name: 'intake_times', type: 'string'},
         {name: 'start_date', type: 'number'},
-        {name: 'rrule', type: 'string'},               // e.g. "FREQ=DAILY" | "FREQ=WEEKLY;BYDAY=MO,WE"
-        {name: 'ends_type', type: 'string'},           // "never" | "on_date" | "after_occurrences"
+        {name: 'rrule', type: 'string'},
+        {name: 'ends_type', type: 'string'},
         {name: 'end_date', type: 'number', isOptional: true},
         {name: 'occurrences_count', type: 'number', isOptional: true},
         {name: 'reminder_enabled', type: 'boolean'},
@@ -41,14 +41,14 @@ export const schema = appSchema({
       name: 'tasks',
       columns: [
         {name: 'title', type: 'string'},
-        {name: 'type', type: 'string'},               // "reminder" | "appointment"
-        {name: 'start_date', type: 'number'},          // timestamp of first occurrence date
-        {name: 'time', type: 'string'},                // "HH:MM" 24h string
-        {name: 'rrule', type: 'string'},               // e.g. "FREQ=DAILY;COUNT=1" for one-off
-        {name: 'ends_type', type: 'string'},           // "never" | "on_date" | "after_occurrences"
+        {name: 'type', type: 'string'},
+        {name: 'start_date', type: 'number'},
+        {name: 'time', type: 'string'},
+        {name: 'rrule', type: 'string'},
+        {name: 'ends_type', type: 'string'},
         {name: 'end_date', type: 'number', isOptional: true},
         {name: 'occurrences_count', type: 'number', isOptional: true},
-        {name: 'reminder', type: 'string'},            // "15min" etc.
+        {name: 'reminder', type: 'string'},
         {name: 'notes', type: 'string', isOptional: true},
         {name: 'doctor_clinic', type: 'string', isOptional: true},
         {name: 'location', type: 'string', isOptional: true},
@@ -59,23 +59,23 @@ export const schema = appSchema({
     tableSchema({
       name: 'occurrences',
       columns: [
-        {name: 'reference_id', type: 'string', isIndexed: true},  // task or medicine id
-        {name: 'reference_type', type: 'string'},                  // "task" | "med"
-        {name: 'scheduled_date', type: 'number', isIndexed: true}, // midnight timestamp of the day
-        {name: 'scheduled_time', type: 'string'},                  // "HH:MM" — which intake slot (meds can have multiple)
+        {name: 'reference_id', type: 'string', isIndexed: true},
+        {name: 'reference_type', type: 'string'},
+        {name: 'scheduled_date', type: 'number', isIndexed: true},
+        {name: 'scheduled_time', type: 'string'},
         {name: 'is_done', type: 'boolean'},
         {name: 'is_cancelled', type: 'boolean'},
         {name: 'snoozed_until', type: 'number', isOptional: true},
-        {name: 'time_override', type: 'string', isOptional: true},   // overrides the rule time for this occurrence
-        {name: 'title_override', type: 'string', isOptional: true},  // overrides the task title for this occurrence
-        {name: 'notes_override', type: 'string', isOptional: true},  // overrides notes for this occurrence
+        {name: 'time_override', type: 'string', isOptional: true},
+        {name: 'title_override', type: 'string', isOptional: true},
+        {name: 'notes_override', type: 'string', isOptional: true},
         {name: 'created_at', type: 'number'},
       ],
     }),
     tableSchema({
       name: 'checkup_reports',
       columns: [
-        {name: 'category_id', type: 'string', isIndexed: true}, // references categories.id or built-in id
+        {name: 'category_id', type: 'string', isIndexed: true},
         {name: 'checkup_date', type: 'number'},
         {name: 'created_at', type: 'number'},
         {name: 'updated_at', type: 'number'},
@@ -97,9 +97,9 @@ export const schema = appSchema({
       name: 'categories',
       columns: [
         {name: 'label', type: 'string'},
-        {name: 'icon', type: 'string'},             // CategoryIconKey
+        {name: 'icon', type: 'string'},
         {name: 'color', type: 'string'},
-        {name: 'fields', type: 'string'},            // JSON: CategoryField[]
+        {name: 'fields', type: 'string'},
         {name: 'created_at', type: 'number'},
         {name: 'updated_at', type: 'number'},
       ],

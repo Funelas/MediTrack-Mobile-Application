@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   SafeAreaView, Switch, Alert, ActivityIndicator,
 } from 'react-native';
-import {useNavigation} from '@react-navigation/native';
+import AuthModal from '../components/AuthModal';
 import Bell from '../assets/svg_icons/bell.svg';
 import QR from '../assets/svg_icons/qr.svg';
 import Heart from '../assets/svg_icons/heart.svg';
@@ -71,12 +71,10 @@ export default function ProfileScreen() {
   const {user, signOut} = useAuth();
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const navigation = useNavigation<any>();
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const handleSync = async () => {
     if (!user) {
-      // Not logged in — navigate to AuthScreen
-      // (wire navigation here once you add AuthScreen to your navigator)
-      navigation.navigate('AuthScreen' as any);
+      setShowAuthModal(true);
       return;
     }
     setSyncing(true);
@@ -114,7 +112,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => navigation.navigate('AuthScreen' as any)}
+                 onPress={() => setShowAuthModal(true)}
                 className="bg-teal-500 rounded-xl px-6 py-2.5 mt-1">
                 <Text className="text-white text-sm font-semibold">Sign In / Register</Text>
               </TouchableOpacity>
@@ -326,6 +324,7 @@ export default function ProfileScreen() {
 
         </View>
       </ScrollView>
+      <AuthModal visible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </SafeAreaView>
   );
 }

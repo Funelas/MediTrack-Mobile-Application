@@ -21,7 +21,7 @@ export async function syncDatabase(userId: string): Promise<void> {
       const changes: Record<string, {created: any[]; updated: any[]; deleted: string[]}> = {};
 
       for (const table of TABLES) {
-        // Fetch created/updated rows
+        // Fetch created/updated rows since last pull
         const {data: upserted, error: upsertErr} = await supabase
           .from(table)
           .select('*')
@@ -31,7 +31,7 @@ export async function syncDatabase(userId: string): Promise<void> {
 
         if (upsertErr) throw new Error(`Pull error on ${table}: ${upsertErr.message}`);
 
-        // Fetch deleted rows
+        // Fetch deleted rows since last pull
         const {data: deleted, error: deleteErr} = await supabase
           .from(table)
           .select('id')
@@ -41,8 +41,12 @@ export async function syncDatabase(userId: string): Promise<void> {
 
         if (deleteErr) throw new Error(`Pull delete error on ${table}: ${deleteErr.message}`);
 
+        // Strip internal WatermelonDB and Supabase-only fields before handing to WDB
+        const clean = (rows: any[]) =>
+          rows.map(({user_id, last_modified, deleted: _d, _status, _changed, ...rest}) => rest);
+
         changes[table] = {
-          created: upserted ?? [],
+          created: clean(upserted ?? []),
           updated: [],
           deleted: (deleted ?? []).map(r => r.id),
         };
@@ -58,20 +62,22 @@ export async function syncDatabase(userId: string): Promise<void> {
 
         const {created, updated, deleted} = tableChanges;
 
-        // Upsert created + updated rows — add user_id to each
-        const toUpsert = [...created, ...updated].map(row => ({
-          ...row,
-          user_id: userId,
-          last_modified: Date.now(),
-          deleted: false,
-        }));
+        // Upsert created + updated — strip WatermelonDB internal fields, add user_id
+        const toUpsert = [...created, ...updated].map(
+          ({_status, _changed, ...row}) => ({
+            ...row,
+            user_id: userId,
+            last_modified: Date.now(),
+            deleted: false,
+          })
+        );
 
         if (toUpsert.length > 0) {
           const {error} = await supabase.from(table).upsert(toUpsert);
           if (error) throw new Error(`Push upsert error on ${table}: ${error.message}`);
         }
 
-        // Soft-delete rows
+        // Soft-delete
         if (deleted.length > 0) {
           const {error} = await supabase
             .from(table)
@@ -83,6 +89,6 @@ export async function syncDatabase(userId: string): Promise<void> {
       }
     },
 
-    migrationsEnabledAtVersion: 1,
+    migrationsEnabledAtVersion: 7,
   });
 }
