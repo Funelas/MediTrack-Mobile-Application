@@ -625,6 +625,46 @@ export const logIntake = async (medicineId: string, status: 'taken' | 'skipped' 
     });
   });
 };
+/**
+ * Mark a medicine dose as taken/untaken for a specific occurrence.
+ * When marking taken:
+ *   - Creates an intake_log row with status 'taken'
+ *   - Decrements currentStock by 1 (if stock > 0)
+ * When marking untaken (toggle back):
+ *   - No stock change (can't un-consume a pill)
+ */
+export const markMedicineTaken = async (
+  medicineId: string,
+  scheduledDate: Date,
+  scheduledTime: string,
+  isDone: boolean,
+): Promise<void> => {
+  // Always upsert the occurrence done state
+  await upsertOccurrence(medicineId, 'med', scheduledDate, scheduledTime, {isDone});
+
+  if (isDone) {
+    // Fetch the medicine to get current stock
+    const med = await medicines.find(medicineId);
+
+    await database.write(async () => {
+      // Log the intake
+      await intakeLogs.create(log => {
+        log.medicineId = medicineId;
+        log.takenAt = new Date();
+        log.status = 'taken';
+        (log as any)._raw.created_at = Date.now();
+      });
+
+      // Decrement stock if above 0
+      if (med.currentStock > 0) {
+        await med.update(m => {
+          m.currentStock = m.currentStock - 1;
+          (m as any)._raw.updated_at = Date.now();
+        });
+      }
+    });
+  }
+};
 
 export const getIntakeLogsForMedicine = (medicineId: string) =>
   intakeLogs.query(Q.where('medicine_id', medicineId)).fetch();
@@ -661,7 +701,7 @@ export const addCheckupReport = async (data: {
         t.unit = result.unit;
         t.normalRange = result.normalRange;
         t.value = result.value;
-        t.status = result.status;
+        t.status = result.status as 'normal' | 'high' | 'low';
         (t as any)._raw.created_at = Date.now();
       });
     }

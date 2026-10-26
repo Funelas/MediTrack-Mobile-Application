@@ -19,7 +19,7 @@ import CircularProgress from '../components/CircularProgress';
 import ScheduleItemCard from '../components/ScheduleItemCard';
 import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import {useAuth} from '../context/AuthContext';
-import {getItemsForDay, upsertOccurrence, VirtualItem, getCheckupReports} from '../database/services';
+import {getItemsForDay, upsertOccurrence, VirtualItem, getCheckupReports, markMedicineTaken} from '../database/services';
 
 const healthSummary = {
   status: 'Good',
@@ -80,6 +80,7 @@ function NextUpCard({
   const {width} = useWindowDimensions();
   const scale = width / 390;
   const s = (n: number) => Math.round(n * scale);
+  const navigation = useNavigation<any>();
   const barAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -329,13 +330,11 @@ export default function HomeScreen() {
     : [];
 
   const handleMarkDone = async (item: VirtualItem) => {
-    await upsertOccurrence(
-      item.referenceId,
-      item.referenceType,
-      item.date,
-      item.time,
-      {isDone: true},
-    );
+    if (item.referenceType === 'med') {
+      await markMedicineTaken(item.referenceId, item.date, item.time, true);
+    } else {
+      await upsertOccurrence(item.referenceId, item.referenceType, item.date, item.time, {isDone: true});
+    }
     loadToday();
   };
 

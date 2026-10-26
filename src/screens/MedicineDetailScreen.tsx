@@ -11,8 +11,9 @@ import QR from '../assets/svg_icons/qr.svg';
 import Pencil from '../assets/svg_icons/pencil.svg';
 import {database} from '../database';
 import MedicineModel from '../database/models/Medicine';
-import {upsertOccurrence} from '../database/services';
+import {upsertOccurrence, markMedicineTaken} from '../database/services';
 import Check from '../assets/svg_icons/check.svg';
+
 type Nav = NativeStackNavigationProp<MedsStackParamList>;
 type Route = RouteProp<MedsStackParamList, 'MedicineDetail'>;
 
@@ -182,7 +183,10 @@ export default function MedicineDetailScreen() {
                             if (!med) return;
                             const newVal = !taken[t];
                             setTaken(prev => ({...prev, [t]: newVal}));
-                            await upsertOccurrence(med.id, 'med', new Date(), t, {isDone: newVal});
+                            await markMedicineTaken(med.id, new Date(), t, newVal);
+                            // Reload to reflect updated stock
+                            const updated = await database.get('medicines').find(med.id);
+                            setMed(updated as any);
                           }}
                           className="flex-row items-center gap-x-1.5 px-3 py-2 rounded-xl"
                           style={{backgroundColor: taken[t] ? '#CCFBF1' : '#F0FDFA'}}>

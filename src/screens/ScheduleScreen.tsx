@@ -16,7 +16,7 @@ import Calendar from '../assets/svg_icons/calendar.svg';
 import Pills from '../assets/svg_icons/pills.svg';
 import Filter from '../assets/svg_icons/filter.svg';
 import {getItemsForDateRange, upsertOccurrence, VirtualItem} from '../database/services';
-
+import {markMedicineTaken} from '../database/services';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -234,11 +234,13 @@ export default function ScheduleScreen() {
   };
 
   const handleToggleDone = async (item: VirtualItem) => {
-    await upsertOccurrence(
-      item.referenceId, item.referenceType, item.date, item.time, {isDone: !item.isDone},
-    );
-    loadItems();
-  };
+  if (item.referenceType === 'med') {
+    await markMedicineTaken(item.referenceId, item.date, item.time, !item.isDone);
+  } else {
+    await upsertOccurrence(item.referenceId, item.referenceType, item.date, item.time, {isDone: !item.isDone});
+  }
+  loadItems();
+};
 
   // ── overdue check (today only) ──
   function isItemOverdue(item: VirtualItem): boolean {
