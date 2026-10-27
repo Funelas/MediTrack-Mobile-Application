@@ -22,6 +22,7 @@ type AuthContextType = {
   verifyOtp: (email: string, token: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   signOut: () => Promise<void>;
+  updateProfile: (data: {fullName?: string; avatarUrl?: string}) => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -45,6 +46,17 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const updateProfile = async (data: {fullName?: string; avatarUrl?: string}): Promise<string | null> => {
+    const updates: Record<string, string> = {};
+    if (data.fullName) {
+      updates.full_name = data.fullName;
+      updates.given_name = data.fullName.split(' ')[0];
+    }
+    if (data.avatarUrl) updates.avatar_url = data.avatarUrl;
+    const {error} = await supabase.auth.updateUser({data: updates});
+    return error?.message ?? null;
+  };
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
     const {error} = await supabase.auth.signInWithPassword({email, password});
@@ -103,7 +115,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   };
 
   return (
-    <AuthContext.Provider value={{user, session, loading, signIn, signUp, verifyOtp, signInWithGoogle, signOut}}>
+    <AuthContext.Provider value={{user, session, loading, signIn, signUp, verifyOtp, signInWithGoogle, signOut, updateProfile}}>
       {children}
     </AuthContext.Provider>
   );

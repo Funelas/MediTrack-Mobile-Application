@@ -1,7 +1,7 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  SafeAreaView, Switch, Alert, ActivityIndicator,
+  SafeAreaView, Switch, Alert, ActivityIndicator, Image
 } from 'react-native';
 import AuthModal from '../components/AuthModal';
 import Bell from '../assets/svg_icons/bell.svg';
@@ -10,9 +10,10 @@ import Heart from '../assets/svg_icons/heart.svg';
 import Pills from '../assets/svg_icons/pills.svg';
 import Arrow from '../assets/svg_icons/arrow.svg';
 import {useAuth} from '../context/AuthContext';
-import {syncDatabase} from '../sync/syncService';
+import {syncDatabase, pushAllToRemote} from '../sync/syncService';
 import NetInfo from '@react-native-community/netinfo';
-
+import EditProfileModal from '../components/EditProfileModal';
+import {cacheGoogleAvatar} from '../services/avatarService';
 // Placeholder data
 const USER = {
   name: 'Juan dela Cruz',
@@ -73,22 +74,49 @@ export default function ProfileScreen() {
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    console.log('[Avatar] user_metadata:', JSON.stringify(user.user_metadata, null, 2));
+    const googlePicture = user.user_metadata?.picture
+      ?? user.user_metadata?.avatar_url
+      ?? user.user_metadata?.photo;
+    const storedAvatar = user.user_metadata?.avatar_url;
+
+    if (storedAvatar && !storedAvatar.includes('googleusercontent')) {
+      // Only use stored avatar if it's our own Supabase URL, not Google's
+      setAvatarUrl(storedAvatar);
+    } else if (googlePicture) {
+      console.log('[Avatar] Caching Google photo for user:', user.id, googlePicture);
+      cacheGoogleAvatar(user.id, googlePicture)
+        .then(url => {
+          console.log('[Avatar] Cached URL:', url);
+          setAvatarUrl(url);
+        })
+        .catch(e => {
+          console.log('[Avatar] Cache failed:', e.message);
+          setAvatarUrl(googlePicture);
+        });
+    } else {
+      console.log('[Avatar] No photo found in user_metadata');
+    }
+  }, [user]);
   const handleSync = async () => {
     if (!user) {
       setShowAuthModal(true);
       return;
     }
     setSyncing(true);
-    setSyncing(true);
-try {
-  const netState = await NetInfo.fetch();
-  if (!netState.isConnected || !netState.isInternetReachable) {
-    Alert.alert('No Internet', 'Changes are saved locally and will sync when you reconnect.');
-    return;
-  }
-  await syncDatabase(user.id);
-  setLastSynced(new Date());
-  Alert.alert('Sync Complete', 'Your data has been synced successfully.');
+    try {
+      const netState = await NetInfo.fetch();
+      if (!netState.isConnected || !netState.isInternetReachable) {
+        Alert.alert('No Internet', 'Changes are saved locally and will sync when you reconnect.');
+        return;
+      }
+      await pushAllToRemote(user.id);
+      setLastSynced(new Date());
+      Alert.alert('Sync Complete', 'Your data has been synced successfully.');
     } catch (e: any) {
       Alert.alert('Sync Failed', e.message ?? 'Something went wrong.');
     } finally {
@@ -127,13 +155,23 @@ try {
           ) : (
             // ── Logged in ──
             <View className="bg-white rounded-2xl p-3 shadow-sm gap-3 ml-1">
-              <View className="flex-row items-center gap-x-4 border-2">
-                <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
-                  <Text className="text-teal-600 text-2xl font-bold">
-                    {(user.user_metadata?.given_name ?? user.email ?? '?')
-                      .slice(0, 2).toUpperCase()}
-                  </Text>
-                </View>
+              <View className="flex-row items-center gap-x-4">
+              <TouchableOpacity onPress={() => setShowEditModal(true)} activeOpacity={0.8}>
+                {avatarUrl ? (
+                  <Image
+                    source={{uri: avatarUrl}}
+                    style={{width: 64, height: 64, borderRadius: 32, backgroundColor: '#CCFBF1'}}
+                  />
+                ) : (
+                  <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
+                    <Text className="text-teal-600 text-2xl font-bold">
+                      {(user.user_metadata?.given_name ?? user.email ?? '?')
+                        .replace(/\w\S*/g, (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                        .slice(0, 2).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
                 <View className="flex-1">
                   <Text className="text-gray-800 text-base font-bold">
                     {(user.user_metadata?.full_name ?? user.user_metadata?.given_name ?? 'User')
@@ -341,6 +379,20 @@ try {
         </View>
       </ScrollView>
       <AuthModal visible={showAuthModal} onClose={() => setShowAuthModal(false)} />
+        <EditProfileModal
+        visible={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          // Refresh avatar after edit
+          const updated = user?.user_metadata?.avatar_url;
+          if (updated) setAvatarUrl(updated);
+        }}
+        currentName={
+          user?.user_metadata?.full_name ??
+          user?.user_metadata?.given_name ?? ''
+        }
+        currentAvatarUrl={avatarUrl}
+      />
     </SafeAreaView>
   );
 }
