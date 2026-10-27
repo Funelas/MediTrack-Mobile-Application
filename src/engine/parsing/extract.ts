@@ -10,6 +10,7 @@ import {
   PY_DOT,
   PY_END,
   PY_SPACE_CLASS,
+  PY_WORD_CHARS,
   pyFloat,
   pyIsDigit,
   pyLower,
@@ -87,8 +88,8 @@ const RE_GRADE = new RegExp('^(?:[1-4]\\+|\\++)' + PY_END, 'u');
 const MIXED = new RegExp('^([A-Za-z][A-Za-z ]*?)' + S + '+(' + NUM + ')' + PY_END, 'u');
 // L129
 const RE_FUSED = new RegExp('^(' + D + '+\\.' + D + '{2})(' + D + '+\\.' + D + '{1,2})' + PY_END, 'u');
-// L130: \w is [\p{L}\p{N}_]
-const RE_GARBLED_TAIL = new RegExp("^x?" + S + "*[\\p{L}\\p{N}_^'¹²³.]*" + S + "*/" + S + "*[lL]" + PY_END, 'u');
+// L130: \w is PY_WORD_CHARS (Python's \w, exported table)
+const RE_GARBLED_TAIL = new RegExp("^x?" + S + "*[" + PY_WORD_CHARS + "^'¹²³.]*" + S + "*/" + S + "*[lL]" + PY_END, 'u');
 // L166
 const RE_STRAY = new RegExp('^[A-Za-z|/!()\\[\\]✓✔]' + PY_END, 'u');
 // L220: [<>\d] spelled out as an alternative

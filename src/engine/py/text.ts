@@ -30,8 +30,16 @@ export const PY_SPACE_CLASS = '[' + unicode.whitespace.map(escapeCode).join('') 
 export const PY_DIGIT_CLASS =
   '[' + unicode.decimal_zeros.map((zero) => escapeCode(zero) + '-' + escapeCode(zero + 9)).join('') + ']';
 
-/** Python's \w; differences between Unicode versions are documented, not hidden. Use with the u flag. */
-export const PY_WORD_CLASS = '[\\p{L}\\p{N}_]';
+/**
+ * Python's \w (str pattern, Unicode 16.0.0) taken from the exported table python_unicode.word_ranges, as the body of a
+ * character class. Use with the u flag; no JavaScript Unicode table is asked.
+ */
+export const PY_WORD_CHARS = unicode.word_ranges
+  .map(([a, b]) => (a === b ? escapeCode(a) : escapeCode(a) + '-' + escapeCode(b)))
+  .join('');
+
+/** Python's \w as a character class. */
+export const PY_WORD_CLASS = '[' + PY_WORD_CHARS + ']';
 
 /** Python's . without DOTALL: everything except \n (so \r, U+2028 and U+2029 match). */
 export const PY_DOT = '[^\\n]';

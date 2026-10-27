@@ -81,6 +81,27 @@ describe('engine_constants.json', () => {
     expect(engineConstants.python_unicode.whitespace).toContain(0xa0);
   });
 
+  it('python_unicode.word_ranges is well formed (sorted, maximal, 771 pairs, 142940 code points)', () => {
+    const ranges = engineConstants.python_unicode.word_ranges;
+    expect(ranges.length).toBe(771);
+    expect(ranges[0]).toEqual([48, 57]);
+    let total = 0;
+    let previousLast = -2;
+    for (const pair of ranges) {
+      expect(pair.length).toBe(2);
+      const [first, last] = pair;
+      expect(Number.isInteger(first)).toBe(true);
+      expect(Number.isInteger(last)).toBe(true);
+      expect(first).toBeGreaterThanOrEqual(0);
+      expect(last).toBeLessThanOrEqual(0x10ffff);
+      expect(first).toBeLessThanOrEqual(last);
+      expect(first).toBeGreaterThan(previousLast + 1);
+      previousLast = last;
+      total += last - first + 1;
+    }
+    expect(total).toBe(142940);
+  });
+
   it('labels equal the label lists of identity_filter_config.json', () => {
     expect(compare(asJson(identityFilterConfig.identity_labels), asJson(engineConstants.labels.identity))).toEqual([]);
     expect(compare(asJson(identityFilterConfig.signature_labels), asJson(engineConstants.labels.signature))).toEqual([]);

@@ -24,7 +24,7 @@ import {loadHistoryRows, saveEngineReport} from '../database/engineResults';
 import {reviewReasons} from '../engine';
 import {
   asPrinted,
-  basisLabel,
+  basisLine,
   flagLabel,
   notRatedLabel,
   reasonText,
@@ -179,7 +179,7 @@ function ResultCard({row}: {row: SavedRow}) {
     valueSource: row.value_source,
     canonicalCode: row.canonical_code,
   });
-  const lines = [notRated, basisLabel(row.range_basis), flagLabel(row.flag), sourceNote(row.value_source, row.ref_source), row.normal_range];
+  const lines = [notRated, basisLine(row.severity, row.range_basis, row.normal_range), flagLabel(row.flag), sourceNote(row.value_source, row.ref_source), row.normal_range];
   return (
     <View className="bg-white rounded-2xl p-4 mb-3 border border-gray-100">
       <View className="flex-row justify-between items-center">

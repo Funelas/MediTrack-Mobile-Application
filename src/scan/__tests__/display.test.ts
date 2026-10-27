@@ -5,6 +5,7 @@ import { unitConversions } from '../../engine/data';
 import {
   asPrinted,
   basisLabel,
+  basisLine,
   flagLabel,
   formatRange,
   NO_VALUE,
@@ -217,6 +218,29 @@ describe('basisLabel and flagLabel', () => {
     expect(flagLabel('')).toBe('');
     expect(flagLabel('N')).toBe('');
     expect(flagLabel('h')).toBe('');
+  });
+});
+
+describe('basisLine', () => {
+  it('shows the basis for a rated row whose range text is empty', () => {
+    expect(basisLine('normal', 'expected_value', '')).toBe('expected result');
+    expect(basisLine('mild', 'guideline', '')).toBe('guideline cut-off');
+    expect(basisLine('significant', 'project_defined', '')).toBe("the app's own cut-off");
+  });
+
+  it('shows nothing when the range text already states the basis', () => {
+    expect(basisLine('normal', 'lab_range', '7 - 56 (printed range)')).toBe('');
+  });
+
+  it('shows nothing for an unrated row or an unknown severity', () => {
+    expect(basisLine('unreadable', 'guideline', '')).toBe('');
+    expect(basisLine('indeterminate', 'lab_range', '')).toBe('');
+    expect(basisLine('indeterminate', 'guideline', '')).toBe('');
+    expect(basisLine('bogus', 'guideline', '')).toBe('');
+  });
+
+  it('shows nothing when there is no basis', () => {
+    expect(basisLine('normal', null, '')).toBe('');
   });
 });
 

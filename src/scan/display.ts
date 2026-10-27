@@ -80,6 +80,17 @@ export function basisLabel(rangeBasis: string | null): string {
   return '';
 }
 
+/**
+ * The basis line of a result card: the basis in words, only for a rated row (normal, mild, significant) whose range text is
+ * empty. When the range text is not empty it already states the basis, and an unrated row used no cut-off or range.
+ */
+export function basisLine(severity: string, rangeBasis: string | null, normalRange: string): string {
+  if ((severity === 'normal' || severity === 'mild' || severity === 'significant') && normalRange === '') {
+    return basisLabel(rangeBasis);
+  }
+  return '';
+}
+
 /** The lab's own flag, as a sentence; empty unless the flag is H, L, HH or LL. */
 export function flagLabel(flag: string | null): string {
   if (flag === 'H' || flag === 'L' || flag === 'HH' || flag === 'LL') {

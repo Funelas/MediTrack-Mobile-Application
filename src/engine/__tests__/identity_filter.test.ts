@@ -77,8 +77,8 @@ describe('dates', () => {
     expect(datesIn('13/05/2026')).toEqual(['2026-05-13']);
   });
 
-  test('DT3 month first when the first part is 12 or less', () => {
-    expect(datesIn('12/05/2026')).toEqual(['2026-12-05']);
+  test('DT3 ambiguous: both parts 12 or less and different gives no candidate', () => {
+    expect(datesIn('12/05/2026')).toEqual([]);
   });
 
   test('DT4 month first with a second part above 12', () => {
@@ -138,6 +138,19 @@ describe('dates', () => {
     expect(datesIn('00/05/2026')).toEqual([]);
     expect(datesIn('12/00/2026')).toEqual([]);
     expect(datesIn('12/32/2026')).toEqual([]);
+  });
+
+  test('DT17 both parts 12 or less and different gives no candidate in either order', () => {
+    expect(datesIn('06/05/2026')).toEqual([]);
+    expect(datesIn('05/06/2026')).toEqual([]);
+  });
+
+  test('DT18 equal parts give the same date either way', () => {
+    expect(datesIn('05/05/2026')).toEqual(['2026-05-05']);
+  });
+
+  test('DT19 a second part above 12 allows one reading only', () => {
+    expect(datesIn('8/21/2026')).toEqual(['2026-08-21']);
   });
 });
 

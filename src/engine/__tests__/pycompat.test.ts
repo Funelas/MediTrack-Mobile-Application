@@ -1,6 +1,7 @@
 // Python-compatibility helpers (ML-27/ML-28, S3): every case of docs/engine_vectors/pycompat.json must be reproduced
 // exactly (decision D4), plus direct checks of JavaScript behaviour that the helpers exist to hide. Only counts and
 // case ids are ever reported, never case text.
+import { engineConstants } from '../data';
 import { pyMean } from '../py/mean';
 import { pyRound } from '../py/round';
 import { firstMax, firstMin, pyMedian, stableSort } from '../py/sort';
@@ -267,4 +268,23 @@ describe('JavaScript behaviour the helpers hide', () => {
     const text = '(a+b)?[c]{2}|d^$\\/.-#&~: ';
     expect(new RegExp('^' + pyEscape(text) + '$', 'u').test(text)).toBe(true);
   });
+
+  it('PY_WORD_CLASS matches exactly the code points of python_unicode.word_ranges (0..0x10FFFF)', () => {
+    const member = new Uint8Array(0x110000);
+    for (const [first, last] of engineConstants.python_unicode.word_ranges) {
+      member.fill(1, first, last + 1);
+    }
+    const pattern = new RegExp('^' + PY_WORD_CLASS + '$', 'u');
+    let mismatches = 0;
+    const firstFew: string[] = [];
+    for (let c = 0; c <= 0x10ffff; c += 1) {
+      if (pattern.test(String.fromCodePoint(c)) !== (member[c] === 1)) {
+        mismatches += 1;
+        if (firstFew.length < 5) {
+          firstFew.push('U+' + c.toString(16).toUpperCase());
+        }
+      }
+    }
+    expect({ mismatches, firstFew }).toEqual({ mismatches: 0, firstFew: [] });
+  }, 60000);
 });

@@ -107,6 +107,8 @@ export function datesIn(text: string): string[] {
   for (const m of text.matchAll(SLASH_DATE)) {
     const a = toInt(m[1]);
     const b = toInt(m[2]);
+    // Ambiguous (D/M or M/D): this row gives no candidate; a lower-ranked date may be offered for confirmation.
+    if (a >= 1 && a <= 12 && b >= 1 && b <= 12 && a !== b) continue;
     const [mo, da] = a <= 12 ? [a, b] : [b, a]; // L88
     if (mo >= 1 && mo <= 12 && da >= 1 && da <= 31) {
       out.push(pad4(toInt(m[3])) + '-' + pad2(mo) + '-' + pad2(da)); // L90

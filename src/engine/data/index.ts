@@ -55,6 +55,7 @@ export interface EngineConstants {
     whitespace: number[];
     decimal_zeros: number[];
     digit_extra: number[];
+    word_ranges: number[][]; // inclusive [first, last] pairs of Python's \w (a JSON import infers number[][])
   };
 }
 
