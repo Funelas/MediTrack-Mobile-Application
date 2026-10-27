@@ -13,6 +13,7 @@ import BackgroundFetch from 'react-native-background-fetch';
 import notifee, {TriggerType, EventType} from '@notifee/react-native';
 import {upsertOccurrence} from './src/database/services';
 import {AppState, PermissionsAndroid, Platform} from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 
 BackgroundFetch.registerHeadlessTask(backgroundFetchHeadlessTask);
 
@@ -159,8 +160,22 @@ function SyncManager() {
     };
   }, [user]);
 
+    useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && state.isInternetReachable) {
+        debouncedSync(user.id);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
   return null;
+
 }
+  
 
 async function requestAllPermissions() {
   if (Platform.OS !== 'android') return;

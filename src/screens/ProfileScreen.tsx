@@ -11,6 +11,7 @@ import Pills from '../assets/svg_icons/pills.svg';
 import Arrow from '../assets/svg_icons/arrow.svg';
 import {useAuth} from '../context/AuthContext';
 import {syncDatabase} from '../sync/syncService';
+import NetInfo from '@react-native-community/netinfo';
 
 // Placeholder data
 const USER = {
@@ -78,10 +79,16 @@ export default function ProfileScreen() {
       return;
     }
     setSyncing(true);
-    try {
-        await syncDatabase(user.id);
-        setLastSynced(new Date());
-        Alert.alert('Sync Complete', 'Your data has been synced successfully.');
+    setSyncing(true);
+try {
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected || !netState.isInternetReachable) {
+    Alert.alert('No Internet', 'Changes are saved locally and will sync when you reconnect.');
+    return;
+  }
+  await syncDatabase(user.id);
+  setLastSynced(new Date());
+  Alert.alert('Sync Complete', 'Your data has been synced successfully.');
     } catch (e: any) {
       Alert.alert('Sync Failed', e.message ?? 'Something went wrong.');
     } finally {
@@ -101,7 +108,7 @@ export default function ProfileScreen() {
         <View className="px-4 mb-4">
           {!user ? (
             // ── Not logged in ──
-            <View className="bg-white rounded-2xl p-5 shadow-sm items-center gap-3">
+            <View className="bg-white rounded-2xl p-5 shadow-sm items-center gap-3 ml-1">
               <View className="w-16 h-16 rounded-full bg-gray-100 items-center justify-center">
                 <Text className="text-3xl">☁️</Text>
               </View>
@@ -119,32 +126,48 @@ export default function ProfileScreen() {
             </View>
           ) : (
             // ── Logged in ──
-            <View className="bg-white rounded-2xl p-4 shadow-sm flex-row items-center gap-4">
-              <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
-                <Text className="text-teal-600 text-2xl font-bold">
-                  {(user.user_metadata?.given_name ?? user.email ?? '?')
-                    .slice(0, 2).toUpperCase()}
-                </Text>
-              </View>
-              <View className="flex-1">
-                <Text className="text-gray-800 text-base font-bold">
-                  {user.user_metadata?.full_name ?? user.user_metadata?.given_name ?? 'User'}
-                </Text>
-                <Text className="text-gray-400 text-xs mt-0.5">{user.email}</Text>
-                <View className="flex-row items-center gap-1.5 mt-1">
-                  <View
-                    style={{
-                      width: 8, height: 8, borderRadius: 4,
-                      backgroundColor: lastSynced ? '#34d399' : '#d1d5db',
-                    }}
-                  />
-                  <Text className="text-gray-400 text-xs">
-                    {lastSynced
-                      ? `Last synced ${lastSynced.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'})}`
-                      : 'Not synced yet — tap Sync Now'}
+            <View className="bg-white rounded-2xl p-3 shadow-sm gap-3 ml-1">
+              <View className="flex-row items-center gap-x-4 border-2">
+                <View className="w-16 h-16 rounded-full bg-teal-100 items-center justify-center">
+                  <Text className="text-teal-600 text-2xl font-bold">
+                    {(user.user_metadata?.given_name ?? user.email ?? '?')
+                      .slice(0, 2).toUpperCase()}
                   </Text>
                 </View>
+                <View className="flex-1">
+                  <Text className="text-gray-800 text-base font-bold">
+                    {(user.user_metadata?.full_name ?? user.user_metadata?.given_name ?? 'User')
+                      .replace(/\w\S*/g, (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())}
+                  </Text>
+                  <Text className="text-gray-400 text-xs mt-0.5">{user.email}</Text>
+                  <View className="flex-row items-center gap-1.5 mt-1">
+                    <View
+                      style={{
+                        width: 8, height: 8, borderRadius: 4,
+                        backgroundColor: lastSynced ? '#34d399' : '#d1d5db',
+                      }}
+                    />
+                    <Text className="text-gray-400 text-xs">
+                      {lastSynced
+                        ? `Last synced at ${lastSynced.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit', hour12: true})}`
+                        : 'Not yet synced'}
+                    </Text>
+                  </View>
+                </View>
               </View>
+              {/* Sync button inside the card */}
+              <TouchableOpacity
+                onPress={handleSync}
+                disabled={syncing}
+                className="flex-row items-center justify-center gap-2 bg-teal-50 rounded-xl py-2.5">
+                {syncing
+                  ? <ActivityIndicator size="small" color="#14B8A6" />
+                  : <Text className="text-teal-500 text-sm">↑↓</Text>
+                }
+                <Text className="text-teal-500 text-sm font-semibold">
+                  {syncing ? 'Syncing...' : 'Sync Now'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -298,17 +321,6 @@ export default function ProfileScreen() {
                 iconBg="#F5F3FF"
                 label="My Invite Code"
                 onPress={() => {}}
-              />
-              <Divider />
-              <SettingRow
-                icon={
-                  syncing
-                    ? <ActivityIndicator size="small" color="#14B8A6" />
-                    : <Text className="text-teal-500 text-base">↑↓</Text>
-                }
-                iconBg="#F0FDFA"
-                label={syncing ? 'Syncing...' : user ? 'Sync Now' : 'Sign In to Sync'}
-                onPress={handleSync}
               />
               {user && (
                 <>

@@ -285,10 +285,14 @@ export default function HomeScreen() {
   const iconLg = s(35);
   const navigation = useNavigation<any>();
   const {user} = useAuth();
-  const firstName = user?.user_metadata?.given_name
+  const toProperCase = (str: string) =>
+    str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+  const rawFirstName = user?.user_metadata?.given_name
     ?? user?.user_metadata?.full_name?.split(' ')[0]
     ?? user?.email?.split('@')[0]
-    ?? '';
+    ?? 'there';
+  const firstName = toProperCase(rawFirstName);
   const [todayItems, setTodayItems] = useState<VirtualItem[]>([]);
   const [hasReports, setHasReports] = useState<boolean | null>(null);
   const [now, setNow] = useState(new Date());
