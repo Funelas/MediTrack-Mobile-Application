@@ -6,6 +6,7 @@ import CreateCategoryScreen from '../screens/CreateCategoryScreen';
 import InputMethodScreen from '../screens/InputMethodScreen';
 import ManualEntryScreen from '../screens/ManualEntryScreen';
 import VerifyResultScreen from '../screens/VerifyResultScreen';
+import EngineReviewScreen from '../screens/EngineReviewScreen';
 
 export type ReportsStackParamList = {
   ReportsMain: undefined;
@@ -13,6 +14,7 @@ export type ReportsStackParamList = {
   CreateCategory: {categoryId?: string} | undefined;
   InputMethod: {categoryId: string; categoryLabel: string; categoryIcon: string};
   ManualEntry: {categoryId: string; categoryLabel: string; categoryIcon: string};
+  EngineReview: {categoryId: string; categoryLabel: string; categoryIcon: string};
   VerifyResult: {categoryId: string; categoryLabel: string; categoryIcon: string; entries: {fieldName: string; value: string; unit?: string; normalRange?: string}[]; date: string; isOCR?: boolean};
 };
 
@@ -27,6 +29,7 @@ export default function ReportsStackNavigator() {
       <Stack.Screen name="InputMethod" component={InputMethodScreen} />
       <Stack.Screen name="ManualEntry" component={ManualEntryScreen} />
       <Stack.Screen name="VerifyResult" component={VerifyResultScreen} />
+      <Stack.Screen name="EngineReview" component={EngineReviewScreen} />
     </Stack.Navigator>
   );
 }

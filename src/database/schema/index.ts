@@ -1,7 +1,7 @@
 import {appSchema, tableSchema} from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 6,
+  version: 7,
   tables: [
     tableSchema({
       name: 'medicines',
@@ -79,6 +79,11 @@ export const schema = appSchema({
         {name: 'checkup_date', type: 'number'},
         {name: 'created_at', type: 'number'},
         {name: 'updated_at', type: 'number'},
+        // Added in version 7 (MOB-03 step 10). The scored report (Contract B) is stored as JSON text.
+        {name: 'contract_b', type: 'string', isOptional: true},
+        {name: 'parser_version', type: 'string', isOptional: true},
+        {name: 'dictionary_version', type: 'string', isOptional: true},
+        {name: 'visit_day', type: 'string', isOptional: true, isIndexed: true}, // "YYYY-MM-DD"
       ],
     }),
     tableSchema({
@@ -91,6 +96,21 @@ export const schema = appSchema({
         {name: 'value', type: 'string'},
         {name: 'status', type: 'string'},
         {name: 'created_at', type: 'number'},
+        // Added in version 7 (MOB-03 step 10). All optional, so rows saved before version 7 stay valid.
+        {name: 'canonical_code', type: 'string', isOptional: true, isIndexed: true},
+        {name: 'severity', type: 'string', isOptional: true},
+        {name: 'direction', type: 'string', isOptional: true},
+        {name: 'range_basis', type: 'string', isOptional: true},
+        {name: 'result_type', type: 'string', isOptional: true},
+        {name: 'value_std', type: 'number', isOptional: true},
+        {name: 'ref_low', type: 'number', isOptional: true},
+        {name: 'ref_high', type: 'number', isOptional: true},
+        {name: 'ref_source', type: 'string', isOptional: true},
+        {name: 'value_source', type: 'string', isOptional: true},
+        {name: 'position', type: 'number', isOptional: true},
+        {name: 'confidence', type: 'number', isOptional: true},
+        {name: 'review_reasons', type: 'string', isOptional: true}, // JSON array text
+        {name: 'flag', type: 'string', isOptional: true},
       ],
     }),
     tableSchema({
@@ -101,6 +121,15 @@ export const schema = appSchema({
         {name: 'color', type: 'string'},
         {name: 'fields', type: 'string'},            // JSON: CategoryField[]
         {name: 'created_at', type: 'number'},
+        {name: 'updated_at', type: 'number'},
+      ],
+    }),
+    // Added in version 7 (MOB-03 step 10). Small key/value settings; the only key used is "sex".
+    tableSchema({
+      name: 'app_settings',
+      columns: [
+        {name: 'key', type: 'string', isIndexed: true},
+        {name: 'value', type: 'string', isOptional: true},
         {name: 'updated_at', type: 'number'},
       ],
     }),

@@ -7,9 +7,10 @@ import * as path from 'path';
 import { compare, Json, readJsonNormalized, Tolerance } from '../../engine/__tests__/helpers/vectors';
 import { FilterResult, FilterReason, IDENTITY_FILTER, IdentityFilter } from '../identityFilter';
 import { RawPage } from '../mlkitPages';
-import { filterScan, readPayload } from '../runEngine';
+import { filterScan, readPayload, scoreRowsForTests } from '../runEngine';
+import { toSavedReport } from '../saveRows';
 import { clearSession, getSession, setSession } from '../session';
-import { isVisitDate, toVisitDate } from '../visitDate';
+import { isVisitDate, prefillDate, toVisitDate } from '../visitDate';
 
 const FIXTURE = path.resolve(
   __dirname,
@@ -24,7 +25,10 @@ const FIXTURE = path.resolve(
   'engine_vectors',
   'real_pages.json',
 );
+const SCORING = path.join(path.dirname(FIXTURE), 'real_pages_scoring.json');
 const PARSE_FN = 'parsing.parser.parse_report';
+const WIDEST_IDS = ['real_hematology_2_none', 'real_hematology_2_null_none'];
+const SX4_ID = 'real_e2e_hematology_2_male';
 const CANARY = 'ZZCANARY';
 
 interface ParseCase {
@@ -36,6 +40,11 @@ interface ParseCase {
     notes: Json[];
     split: { reasons: string[][]; ready: number[]; review: number[] };
   };
+}
+
+interface ScoringCase {
+  id: string;
+  input: { parse_case: string; history: { [code: string]: unknown[] }; weights: { [code: string]: unknown } };
 }
 
 interface RealPagesFile {
@@ -52,12 +61,27 @@ function canned(result: FilterResult): IdentityFilter {
   return () => result;
 }
 
+/** The number of keys named "sex" at any depth of a JSON value (a count only, never text). */
+function sexKeyCount(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.reduce((total: number, item) => total + sexKeyCount(item), 0);
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.entries(value as { [key: string]: unknown }).reduce(
+      (total, [key, item]) => total + (key === 'sex' ? 1 : 0) + sexKeyCount(item),
+      0,
+    );
+  }
+  return 0;
+}
+
 const NO_PAGES: RawPage[] = [];
 const REAL: RealPagesFile | null = fs.existsSync(FIXTURE) ? (readJsonNormalized(FIXTURE) as unknown as RealPagesFile) : null;
 
 describe('the filter seam', () => {
-  it('has no filter yet (MOB-02 sets it)', () => {
-    expect(IDENTITY_FILTER).toBeNull();
+  it('has the identity filter wired (step 15)', () => {
+    expect(IDENTITY_FILTER).not.toBeNull();
+    expect(typeof IDENTITY_FILTER).toBe('function');
   });
 });
 
@@ -192,6 +216,59 @@ describe('visit date (row D-1)', () => {
   });
 });
 
+describe('visit date closing rows (MOB-03 8b findings)', () => {
+  const CLOCK = new Date(2026, 6, 8, 23, 59, 59, 999);
+
+  it('DC1: an invalid clock gives false', () => {
+    expect(isVisitDate('2026-07-08', new Date(NaN))).toBe(false);
+  });
+
+  it('DC2: today is true just after local midnight', () => {
+    expect(isVisitDate('2026-07-08', new Date(2026, 6, 8, 0, 30))).toBe(true);
+  });
+
+  it('DC3: tomorrow is false at 23:59', () => {
+    expect(isVisitDate('2026-07-09', new Date(2026, 6, 8, 23, 59))).toBe(false);
+  });
+
+  it('DC4: prefillDate gives a valid past candidate back and an empty string for null', () => {
+    expect(prefillDate('2026-07-08', new Date(2026, 9, 27))).toBe('2026-07-08');
+    expect(prefillDate(null, new Date(2026, 9, 27))).toBe('');
+  });
+
+  it('DC5: today, the lowest year and a leap day are true at the last millisecond of the day', () => {
+    expect(isVisitDate('2026-07-08', CLOCK)).toBe(true);
+    expect(isVisitDate('1900-01-01', CLOCK)).toBe(true);
+    expect(isVisitDate('2024-02-29', CLOCK)).toBe(true);
+  });
+
+  it('DC6: a year before 1900, a non-leap 29 February and an unpadded date are false', () => {
+    expect(isVisitDate('1899-12-31', CLOCK)).toBe(false);
+    expect(isVisitDate('2026-02-29', CLOCK)).toBe(false);
+    expect(isVisitDate('2026-7-8', CLOCK)).toBe(false);
+  });
+
+  // The filter checks only 1 <= day <= 31, so it can give the candidate "2026-02-31". The candidate itself is asserted by
+  // the engine tests (src/scan tests may import only the public engine API, which does not export datesIn). Here the
+  // date step must refuse it and leave the field empty, so that the user types the date.
+  it('DT8: a candidate with a day that does not exist is not prefilled', () => {
+    expect(prefillDate('2026-02-31', CLOCK)).toBe('');
+    expect(isVisitDate('2026-02-31', CLOCK)).toBe(false);
+  });
+
+  it('DT13: a candidate with a month and day out of range is not prefilled', () => {
+    expect(prefillDate('2026-13-45', CLOCK)).toBe('');
+    expect(isVisitDate('2026-13-45', CLOCK)).toBe(false);
+  });
+
+  it('TZ1: the Jest time zone is pinned east of UTC, so the local day differs from the UTC day', () => {
+    const date = new Date(2026, 6, 8, 0, 30);
+    expect(date.getTimezoneOffset()).toBe(-480);
+    expect(date.toISOString()).toBe('2026-07-07T16:30:00.000Z');
+    expect(toVisitDate(date)).toBe('2026-07-08');
+  });
+});
+
 describe('session slot', () => {
   it('holds one session until it is cleared', () => {
     clearSession();
@@ -267,5 +344,104 @@ describeReal('with real pages (fixture file)', () => {
     expect(compared).toBeGreaterThan(0);
     expect(compared).toBe(cases.length);
     expect(failed).toEqual([]);
+  });
+
+  it('WC1: widestRangeCount is 3 for the two hematology cases with no sex and 0 for the other ten', () => {
+    expect(cases.length).toBe(12);
+    const wrong: string[] = [];
+    let threes = 0;
+    cases.forEach((c) => {
+      const out = readPayload(file.payloads[c.input.payload], {
+        visitId: c.input.visit_id,
+        visitDate: c.input.visit_date,
+        sex: c.input.sex,
+      });
+      const expected = WIDEST_IDS.includes(c.id) ? 3 : 0;
+      if (out.kind !== 'read' || out.widestRangeCount !== expected) {
+        wrong.push(c.id);
+      } else if (out.widestRangeCount === 3) {
+        threes += 1;
+      }
+    });
+    expect(wrong).toEqual([]);
+    expect(threes).toBe(WIDEST_IDS.length);
+  });
+
+  const itScoring = fs.existsSync(SCORING) ? it : it.skip;
+
+  itScoring('unsupportedCount is the number of results minus the parameters of the Contract B, on each real case', () => {
+    const scoring = readJsonNormalized(SCORING) as unknown as { cases: ScoringCase[] };
+    const wrong: string[] = [];
+    let compared = 0;
+    let positive = 0;
+    scoring.cases.forEach((s) => {
+      const c = cases.find((p) => p.id === s.input.parse_case) as ParseCase;
+      const out = readPayload(file.payloads[c.input.payload], {
+        visitId: c.input.visit_id,
+        visitDate: c.input.visit_date,
+        sex: c.input.sex,
+      });
+      if (out.kind !== 'read') {
+        wrong.push(s.id);
+        return;
+      }
+      const scored = scoreRowsForTests(out.record.results, out.record.visit_date as string, s.input.history, s.input.weights);
+      if (scored.kind !== 'scored') {
+        wrong.push(s.id);
+        return;
+      }
+      compared += 1;
+      if (out.unsupportedCount > 0) {
+        positive += 1;
+      }
+      if (out.unsupportedCount !== out.record.results.length - scored.contractB.parameters.length) {
+        wrong.push(s.id);
+      }
+    });
+    expect(wrong).toEqual([]);
+    expect(compared).toBe(scoring.cases.length);
+    expect(compared).toBe(12);
+    expect(positive).toBeGreaterThan(0);
+  });
+
+  it('SX4 control: the key scan counts a key named sex at depth', () => {
+    expect(sexKeyCount({ a: [{ b: { sex: 1 } }], sex: null })).toBe(2);
+    expect(sexKeyCount({ a: [{ b: { sexual: 1 } }] })).toBe(0);
+  });
+
+  itScoring('SX4: no key named sex in the record, the Contract B or the saved rows, though readPayload gets sex male', () => {
+    const scoring = readJsonNormalized(SCORING) as unknown as { cases: ScoringCase[] };
+    const s = scoring.cases.find((p) => p.id === SX4_ID) as ScoringCase;
+    expect(s).toBeDefined();
+    const c = cases.find((p) => p.id === s.input.parse_case) as ParseCase;
+    expect(c.input.sex).toBe('male');
+    const out = readPayload(file.payloads[c.input.payload], {
+      visitId: c.input.visit_id,
+      visitDate: c.input.visit_date,
+      sex: 'male',
+    });
+    expect(out.kind).toBe('read');
+    if (out.kind !== 'read') {
+      return;
+    }
+    const scored = scoreRowsForTests(out.record.results, out.record.visit_date as string, s.input.history, s.input.weights);
+    expect(scored.kind).toBe('scored');
+    if (scored.kind !== 'scored') {
+      return;
+    }
+    const saved = toSavedReport(scored, out.record);
+    expect(saved.kind).toBe('saved');
+    if (saved.kind !== 'saved') {
+      return;
+    }
+    expect(out.record.results.length).toBeGreaterThan(0);
+    expect(saved.rows.length).toBe(scored.contractB.parameters.length);
+    expect({
+      record: sexKeyCount(out.record),
+      contractB: sexKeyCount(scored.contractB),
+      savedRows: sexKeyCount(saved.rows),
+      savedReport: sexKeyCount(saved.report),
+      savedContractBText: sexKeyCount(JSON.parse(saved.report.contractBJson)),
+    }).toEqual({ record: 0, contractB: 0, savedRows: 0, savedReport: 0, savedContractBText: 0 });
   });
 });

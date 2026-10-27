@@ -155,7 +155,7 @@ describe('review constants', () => {
 });
 
 describe('index.ts, the public API of the engine', () => {
-  const functions = ['parseReport', 'needsReview', 'reviewReasons', 'splitForReview', 'applyTypedRange', 'validatePayload', 'validateA', 'buildContractB', 'validateB', 'validateC', 'checkParity'];
+  const functions = ['parseReport', 'needsReview', 'reviewReasons', 'splitForReview', 'applyTypedRange', 'validatePayload', 'validateA', 'buildContractB', 'validateB', 'validateC', 'checkParity', 'sanitize'];
   const constants = ['REVIEW_THRESHOLD', 'REVIEW_REASON_CODES'];
 
   it('exports exactly the agreed names, each defined', () => {

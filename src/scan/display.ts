@@ -1,8 +1,9 @@
 // Display helpers for the scan screens (MOB-03 step 7, plan 6.2 to 6.5). Pure TypeScript. They only map and format: no
 // clinical value is computed here. Severity is shown as a status word (statusFor), never as the severity itself; the words
-// "diagnosis", "mild" and "significant" are never part of any text this file returns. The wording of reasonText and
-// unknownLabel is project-defined display text (draft until the correction-screen spec is approved).
-import { unitConversions } from '../engine/data';
+// "diagnosis", "mild" and "significant" are never part of any text this file returns. The wording of reasonText,
+// basisLabel, flagLabel, rangeWithBasis, notRatedLabel and sourceNote is project-defined display text (draft until the
+// correction-screen spec is approved).
+import { dictionary, unitConversions } from '../engine/data';
 
 export type Status = 'normal' | 'high' | 'low' | 'unknown';
 
@@ -47,13 +48,42 @@ export function statusFor(severity: string, direction: string | null): Status {
   throw new Error('invariant: unknown severity');
 }
 
-/** Why a result has no status: no range to compare with, or no value read. Empty for any other severity. */
-export function unknownLabel(severity: string): string {
-  if (severity === 'indeterminate') {
-    return 'No range to compare';
+/** The result of safeStatus: the status, or ok false when the saved severity and direction cannot be shown. */
+export type SafeStatus = { ok: true; status: Status } | { ok: false };
+
+/** statusFor that does not throw: ok false for a broken record (the screen then shows "Could not show this result"). */
+export function safeStatus(severity: string, direction: string | null): SafeStatus {
+  try {
+    return { ok: true, status: statusFor(severity, direction) };
+  } catch {
+    return { ok: false };
   }
-  if (severity === 'unreadable') {
-    return 'Could not read';
+}
+
+/** What a range_basis means, in words for the screen; empty for a basis that is not one of the five. */
+export function basisLabel(rangeBasis: string | null): string {
+  if (rangeBasis === 'guideline') {
+    return 'guideline cut-off';
+  }
+  if (rangeBasis === 'project_defined') {
+    return "the app's own cut-off";
+  }
+  if (rangeBasis === 'lab_range') {
+    return 'printed range';
+  }
+  if (rangeBasis === 'dictionary_default') {
+    return 'general reference range';
+  }
+  if (rangeBasis === 'expected_value') {
+    return 'expected result';
+  }
+  return '';
+}
+
+/** The lab's own flag, as a sentence; empty unless the flag is H, L, HH or LL. */
+export function flagLabel(flag: string | null): string {
+  if (flag === 'H' || flag === 'L' || flag === 'HH' || flag === 'LL') {
+    return `marked ${flag} on your report`;
   }
   return '';
 }
@@ -85,6 +115,92 @@ export function formatRange(low: number | null, high: number | null): string {
   }
   if (high !== null) {
     return `high limit ${String(high)}`;
+  }
+  return '';
+}
+
+/**
+ * A range with the basis the status rests on. For a guideline or project-defined cut-off the printed range is shown beside
+ * the note that the status comes from the cut-off; for a lab range or a general reference range the range carries its
+ * basis. `convertedTo` is the unit the limits were converted to, or null.
+ */
+export function rangeWithBasis(
+  low: number | null,
+  high: number | null,
+  basis: string | null,
+  convertedTo: string | null,
+): string {
+  const r = formatRange(low, high);
+  const b = basisLabel(basis);
+  const c = convertedTo === null ? '' : `, converted to ${convertedTo}`;
+  if (basis === 'guideline' || basis === 'project_defined') {
+    return r === '' ? `status by ${b}` : `${r} (printed range${c}); status by ${b}`;
+  }
+  if (basis === 'lab_range' || basis === 'dictionary_default') {
+    return r === '' ? '' : `${r} (${b}${c})`;
+  }
+  return r;
+}
+
+/** What notRatedLabel reads from a saved result. */
+export interface NotRatedInput {
+  severity: string;
+  rangeBasis: string | null;
+  valueStd: number | null;
+  refLow: number | null;
+  refHigh: number | null;
+  valueSource: string | null;
+  canonicalCode: string | null;
+}
+
+/** The dictionary standard unit of a code, or null when the code or its unit is missing. */
+function standardUnitOf(code: string | null): string | null {
+  if (code === null || !Object.prototype.hasOwnProperty.call(dictionary.analytes, code)) {
+    return null;
+  }
+  const unit = dictionary.analytes[code].standard_unit;
+  return typeof unit === 'string' && unit !== '' ? unit : null;
+}
+
+/**
+ * Why a result has no status (project-defined display text). Empty for a severity that has a status. The first matching
+ * rule wins; the reason is chosen from the saved fields only, nothing is recomputed.
+ */
+export function notRatedLabel(input: NotRatedInput): string {
+  if (input.severity === 'unreadable') {
+    return 'Could not read';
+  }
+  if (input.severity !== 'indeterminate') {
+    return '';
+  }
+  if (typeof input.valueStd === 'number' && Number.isFinite(input.valueStd) && input.valueStd < 0) {
+    return 'Not rated: the value is below zero.';
+  }
+  if (input.rangeBasis === 'guideline' || input.rangeBasis === 'project_defined') {
+    const std = standardUnitOf(input.canonicalCode);
+    return std === null ? 'Not rated.' : `Not rated: the unit is not ${std}, the unit the cut-off uses.`;
+  }
+  if (input.rangeBasis === 'expected_value') {
+    return 'Not rated: the app does not know this result word.';
+  }
+  if (input.rangeBasis === 'lab_range') {
+    if (input.refLow === null && input.refHigh === null) {
+      return input.valueSource === 'user'
+        ? 'Not rated: your report printed no normal range.'
+        : 'No range to compare';
+    }
+    return 'Not rated: the printed range could not be used.';
+  }
+  return 'Not rated.';
+}
+
+/** A note on where a range came from when the user supplied it; empty otherwise. */
+export function sourceNote(valueSource: string | null, refSource: string | null): string {
+  if (valueSource === 'user' && refSource === null) {
+    return 'You answered that no range is printed. The result itself is as read from your report.';
+  }
+  if (valueSource === 'user' && refSource === 'printed') {
+    return 'You typed this range from your report. The result itself is as read from your report.';
   }
   return '';
 }

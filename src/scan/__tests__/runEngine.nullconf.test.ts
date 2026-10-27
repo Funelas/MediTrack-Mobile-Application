@@ -13,6 +13,7 @@ interface ParseCase {
   id: string;
   fn: string;
   input: { payload: string; visit_id: string; visit_date: string; sex: string | null };
+  expected: { split: { reasons: string[][] } };
 }
 
 interface RealPagesFile {
@@ -94,6 +95,30 @@ describeReal('real pages with every word confidence null', () => {
     expect(lowConfidence).toBe(12);
     expect(anyReason).toBe(20);
     expect(nullConfidence).toBe(0);
+  });
+
+  // NC1 (8b finding e): the native-confidence side as stored by the Python reference. The counts are read from the stored
+  // split reasons. This test has no ground truth, so it says nothing about misreads: it only shows that removing the
+  // confidence moves rows from "ready" to "review" by a known amount (29 low_confidence rows against 12).
+  it('NC1: the stored native-confidence splits give 124 rows, 29 with low_confidence and 36 with any review reason', () => {
+    let rows = 0;
+    let lowConfidence = 0;
+    let anyReason = 0;
+    cases.forEach((c) => {
+      c.expected.split.reasons.forEach((reasons) => {
+        rows += 1;
+        if (reasons.includes('low_confidence')) {
+          lowConfidence += 1;
+        }
+        if (reasons.length > 0) {
+          anyReason += 1;
+        }
+      });
+    });
+    expect(rows).toBe(124);
+    expect(lowConfidence).toBe(29);
+    expect(anyReason).toBe(36);
+    expect(lowConfidence).toBeGreaterThan(12);
   });
 
   it('does not change the fixture payloads', () => {

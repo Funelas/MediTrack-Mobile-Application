@@ -4,7 +4,11 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {ReportsStackParamList} from '../navigation/ReportsStackNavigator';
-import {recognizeText, parseOCRText} from '../utils/ocrUtils';
+import {recognizeText, recognizeResult, parseOCRText} from '../utils/ocrUtils';
+import {IDENTITY_FILTER} from '../scan/identityFilter';
+import {toRawPage} from '../scan/mlkitPages';
+import {filterScan} from '../scan/runEngine';
+import {setSession} from '../scan/session';
 import QR from '../assets/svg_icons/qr.svg';
 import Tap from '../assets/svg_icons/tap.svg';
 
@@ -52,9 +56,48 @@ export default function InputMethodScreen() {
   const formatDate = (d: Date) =>
     d.toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'});
 
-  const runOCR = async (imageUri: string) => {
+  const showCouldNotRead = () => {
+    Alert.alert('OCR Failed', 'Could not read the image. Please try again or use Manual Entry.');
+  };
+
+  // The engine path (used once the identity filter is wired). The raw result and page stay in local variables.
+  const runEngineScan = async (imageUri: string, width?: number, height?: number) => {
+    const filter = IDENTITY_FILTER;
+    if (filter === null) return;
+    const result = await recognizeResult(imageUri);
+    const page = toRawPage(result, {width, height}, 0);
+    if (page.kind === 'no_image_size') {
+      showCouldNotRead();
+      return;
+    }
+    const scan = filterScan([page.page], filter);
+    if (scan.kind === 'payload') {
+      setSession({payload: scan.payload, record: null, dateCandidate: scan.dateCandidate});
+      navigation.navigate('EngineReview', {categoryId, categoryLabel, categoryIcon});
+    } else if (scan.kind === 'no_table') {
+      Alert.alert(
+        'No Results Table Found',
+        'We could not find a results table in this image. You can enter the values manually instead.',
+        [
+          {
+            text: 'Manual Entry',
+            onPress: () => navigation.navigate('ManualEntry', {categoryId, categoryLabel, categoryIcon}),
+          },
+          {text: 'Cancel', style: 'cancel'},
+        ],
+      );
+    } else {
+      showCouldNotRead();
+    }
+  };
+
+  const runOCR = async (imageUri: string, width?: number, height?: number) => {
     setLoading(true);
     try {
+      if (IDENTITY_FILTER !== null) {
+        await runEngineScan(imageUri, width, height);
+        return;
+      }
       const rawText = await recognizeText(imageUri);
       const fields = (params as any).fields
         ? JSON.parse((params as any).fields)
@@ -69,7 +112,7 @@ export default function InputMethodScreen() {
         isOCR: true,
       });
     } catch (e) {
-      Alert.alert('OCR Failed', 'Could not read the image. Please try again or use Manual Entry.');
+      showCouldNotRead();
     } finally {
       setLoading(false);
     }
@@ -80,8 +123,8 @@ export default function InputMethodScreen() {
       {mediaType: 'photo', quality: 1, saveToPhotos: false},
       response => {
         if (response.didCancel || response.errorCode) return;
-        const uri = response.assets?.[0]?.uri;
-        if (uri) runOCR(uri);
+        const asset = response.assets?.[0];
+        if (asset?.uri) runOCR(asset.uri, asset.width, asset.height);
       },
     );
   };
@@ -91,8 +134,8 @@ export default function InputMethodScreen() {
       {mediaType: 'photo', quality: 1},
       response => {
         if (response.didCancel || response.errorCode) return;
-        const uri = response.assets?.[0]?.uri;
-        if (uri) runOCR(uri);
+        const asset = response.assets?.[0];
+        if (asset?.uri) runOCR(asset.uri, asset.width, asset.height);
       },
     );
   };

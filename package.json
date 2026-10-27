@@ -13,7 +13,8 @@
     "engine:validators": "node scripts/build-validators.js",
     "engine:validators:check": "node scripts/build-validators.js --check",
     "typecheck:engine": "tsc -p tsconfig.engine.json",
-    "typecheck:scan": "tsc -p tsconfig.scan.json"
+    "typecheck:scan": "tsc -p tsconfig.scan.json",
+    "typecheck:database": "tsc -p tsconfig.database.json"
   },
   "dependencies": {
     "@notifee/react-native": "^9.1.8",

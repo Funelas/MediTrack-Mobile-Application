@@ -1,10 +1,13 @@
-// Rows prepared for saving (MOB-03 step 8, plan 6.2 and 6.6). Pure TypeScript. toSavedReport takes the scored result and the
-// Contract A record and returns the report fields and one row per Contract B parameter, in Contract B order. Every
+// Rows prepared for saving (MOB-03 steps 8 and 9, plan 6.2 and 6.6). Pure TypeScript. toSavedReport takes the scored result
+// and the Contract A record and returns the report fields and one row per Contract B parameter, in Contract B order. Every
 // clinical field is copied from the Contract B parameter as it is (nothing is computed or rounded here); the status comes
-// from statusFor. Rows the engine does not support have no parameter and are not saved (decision U4). A failure, such as
-// statusFor throwing on a broken record, is a kind only, with no message, because a message could quote report text.
-import { ContractB, ContractBParameter, ParseOutput } from '../engine';
-import { formatRange, Status, statusFor } from './display';
+// from statusFor. Step 9 adds the row confidence, the review reasons still open at Save and the lab's flag (from the
+// Contract A row), the range text with its basis (rangeWithBasis) and the check-up day (visitDay, from Contract B, which
+// must equal the record's date). Rows the engine does not support have no parameter and are not saved (decision U4). A
+// failure, such as statusFor throwing on a broken record, is a kind only, with no message, because a message could quote
+// report text.
+import { ContractB, ContractBParameter, ParseOutput, reviewReasons } from '../engine';
+import { rangeWithBasis, Status, statusFor } from './display';
 import { RowPair, ScoreResult } from './runEngine';
 
 type ContractARecord = ParseOutput['record'];
@@ -27,12 +30,17 @@ export interface SavedRow {
   unit: string;
   normal_range: string;
   status: Status;
+  confidence: number | null;
+  /** JSON text of the reasons still open at Save, e.g. ["missing_range"] or []. */
+  review_reasons: string;
+  flag: string | null;
 }
 
 export interface SavedReportFields {
   contractBJson: string;
   parserVersion: string;
   dictionaryVersion: string;
+  visitDay: string;
 }
 
 export type SaveResult =
@@ -60,6 +68,9 @@ function savedRow(pair: RowPair, index: number): SavedRow {
   const refLow = finiteOrNull(pair.a.ref_low);
   const refHigh = finiteOrNull(pair.a.ref_high);
   const valueStd = finiteOrNull(b.value);
+  // The parser sets reported_value only when it converted the value and both limits to the standard unit.
+  const converted = pair.a.reported_value !== null && pair.a.reported_value !== undefined;
+  const convertedTo = converted && b.unit !== null ? b.unit : null;
   return {
     test_name: b.test_name,
     canonical_code: b.canonical_code,
@@ -75,15 +86,18 @@ function savedRow(pair: RowPair, index: number): SavedRow {
     position: index,
     value: shownValue(valueStd, textOrNull(b.value_text)),
     unit: b.unit === null ? '' : b.unit,
-    normal_range: formatRange(refLow, refHigh),
+    normal_range: rangeWithBasis(refLow, refHigh, b.range_basis, convertedTo),
     status: statusFor(b.severity, b.direction),
+    confidence: finiteOrNull(pair.a.confidence),
+    review_reasons: JSON.stringify(reviewReasons(pair.a)),
+    flag: textOrNull(pair.a.flag),
   };
 }
 
 /**
  * The report fields and the rows to save, from a scored result and the Contract A record. The whole Contract B is kept as
  * JSON text, and the parser and dictionary versions are read from the record. A result that is not `scored`, a record
- * without both versions, or any exception (such as statusFor on an abnormal severity with no direction) is
+ * without both versions, a Contract B date that is not the record's date, or any exception (such as statusFor on an abnormal severity with no direction) is
  * `could_not_read`. The inputs are not changed.
  */
 export function toSavedReport(scored: ScoreResult, record: ContractARecord): SaveResult {
@@ -100,10 +114,14 @@ export function toSavedReport(scored: ScoreResult, record: ContractARecord): Sav
       return { kind: 'could_not_read' };
     }
     const contractB: ContractB = scored.contractB;
+    const visitDay = contractB.visit_date;
+    if (typeof visitDay !== 'string' || visitDay !== record.visit_date) {
+      return { kind: 'could_not_read' };
+    }
     const rows = scored.pairs.map((pair, index) => savedRow(pair, index));
     return {
       kind: 'saved',
-      report: { contractBJson: JSON.stringify(contractB), parserVersion, dictionaryVersion },
+      report: { contractBJson: JSON.stringify(contractB), parserVersion, dictionaryVersion, visitDay },
       rows,
     };
   } catch {

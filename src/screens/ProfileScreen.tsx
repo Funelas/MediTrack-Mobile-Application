@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import QR from '../assets/svg_icons/qr.svg';
 import Heart from '../assets/svg_icons/heart.svg';
 import Pills from '../assets/svg_icons/pills.svg';
 import Arrow from '../assets/svg_icons/arrow.svg';
+import {database} from '../database';
+import {loadSex, saveSex} from '../database/settings';
 
 // Placeholder data
 const USER = {
@@ -66,9 +68,38 @@ function Divider() {
   return <View className="h-px bg-gray-100 ml-16" />;
 }
 
+type SexChoice = 'male' | 'female' | null;
+
+const SEX_CHOICES: Array<{label: string; value: SexChoice}> = [
+  {label: 'Male', value: 'male'},
+  {label: 'Female', value: 'female'},
+  {label: 'Not set', value: null},
+];
+
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [lowStockEnabled, setLowStockEnabled] = useState(true);
+  const [sex, setSex] = useState<SexChoice>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadSex(database)
+      .then(stored => {
+        if (!cancelled) {
+          setSex(stored);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const chooseSex = (choice: SexChoice) => {
+    saveSex(database, choice)
+      .then(() => setSex(choice))
+      .catch(() => {});
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -233,6 +264,39 @@ export default function ProfileScreen() {
                   />
                 }
               />
+            </View>
+          </View>
+
+          {/* Preferences */}
+          <View>
+            <Text className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 ml-1">
+              Preferences
+            </Text>
+            <View className="bg-white rounded-2xl overflow-hidden shadow-sm px-4 py-3.5">
+              <Text className="text-gray-800 text-sm font-medium mb-2">Sex for lab ranges</Text>
+              <View className="flex-row gap-2">
+                {SEX_CHOICES.map(choice => {
+                  const selected = sex === choice.value;
+                  return (
+                    <TouchableOpacity
+                      key={choice.label}
+                      onPress={() => chooseSex(choice.value)}
+                      activeOpacity={0.7}
+                      className={
+                        selected
+                          ? 'flex-1 items-center rounded-xl py-2.5 bg-teal-500'
+                          : 'flex-1 items-center rounded-xl py-2.5 bg-gray-100'
+                      }>
+                      <Text className={selected ? 'text-white text-sm font-semibold' : 'text-gray-600 text-sm font-medium'}>
+                        {choice.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text className="text-gray-400 text-xs mt-2">
+                Used only on this phone, to choose between male and female ranges printed on a report. Never read from a scan and never sent.
+              </Text>
             </View>
           </View>
 

@@ -13,8 +13,24 @@ export default class TestResult extends Model {
   @field('unit') unit!: string;
   @field('normal_range') normalRange!: string;
   @field('value') value!: string;
-  @field('status') status!: 'normal' | 'high' | 'low';
+  @field('status') status!: 'normal' | 'high' | 'low' | 'unknown';
   @readonly @date('created_at') createdAt!: Date;
+
+  // Added in schema version 7; null on rows saved before it.
+  @field('canonical_code') canonicalCode!: string | null;
+  @field('severity') severity!: string | null;
+  @field('direction') direction!: string | null;
+  @field('range_basis') rangeBasis!: string | null;
+  @field('result_type') resultType!: string | null;
+  @field('value_std') valueStd!: number | null;
+  @field('ref_low') refLow!: number | null;
+  @field('ref_high') refHigh!: number | null;
+  @field('ref_source') refSource!: string | null;
+  @field('value_source') valueSource!: string | null;
+  @field('position') position!: number | null;
+  @field('confidence') confidence!: number | null;
+  @field('review_reasons') reviewReasons!: string | null; // JSON array text
+  @field('flag') flag!: string | null;
 
   @relation('checkup_reports', 'report_id') report!: CheckupReport;
 }

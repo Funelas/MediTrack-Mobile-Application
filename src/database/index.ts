@@ -1,6 +1,7 @@
 import {Database} from '@nozbe/watermelondb';
 import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 import {schema} from './schema';
+import {migrations} from './schema/migrations';
 import Medicine from './models/Medicine';
 import IntakeLog from './models/IntakeLog';
 import Task from './models/Task';
@@ -8,9 +9,11 @@ import Occurrence from './models/Occurrence';
 import CheckupReport from './models/CheckupReport';
 import TestResult from './models/TestResult';
 import Category from './models/Category';
+import AppSetting from './models/AppSetting';
 
 const adapter = new SQLiteAdapter({
   schema,
+  migrations,
   dbName: 'meditrack',
   jsi: false,
   onSetUpError: error => {
@@ -20,5 +23,5 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Medicine, IntakeLog, Task, Occurrence, CheckupReport, TestResult, Category],
+  modelClasses: [Medicine, IntakeLog, Task, Occurrence, CheckupReport, TestResult, Category, AppSetting],
 });

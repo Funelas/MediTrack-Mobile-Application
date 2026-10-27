@@ -1,4 +1,5 @@
 import TextRecognition from '@react-native-ml-kit/text-recognition';
+import type {MlKitResultLike} from '../scan/mlkitPages';
 
 export interface ParsedEntry {
   fieldName: string;
@@ -42,6 +43,14 @@ export async function recognizeText(imageUri: string): Promise<string> {
   });
 
   return lines.map(l => l.text).join('\n');
+}
+
+/**
+ * Runs ML Kit OCR on the given image URI and returns the full wrapper result (blocks, lines, words and frames).
+ * The caller keeps it in a local variable only; nothing is logged or stored here.
+ */
+export async function recognizeResult(imageUri: string): Promise<MlKitResultLike> {
+  return TextRecognition.recognize(imageUri);
 }
 
 /**

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.engine.json",
+  "compilerOptions": {
+    "experimentalDecorators": true
+  },
+  "include": [
+    "src/database/schema/**/*",
+    "src/database/models/**/*",
+    "src/database/__tests__/**/*",
+    "src/database/engineResults.ts",
+    "src/database/settings.ts"
+  ]
+}

@@ -12,5 +12,11 @@ export default class CheckupReport extends Model {
   @nochange @date('created_at') createdAt!: Date;
   @date('updated_at') updatedAt!: Date;
 
+  // Added in schema version 7; null on rows saved before it.
+  @field('contract_b') contractB!: string | null; // JSON text
+  @field('parser_version') parserVersion!: string | null;
+  @field('dictionary_version') dictionaryVersion!: string | null;
+  @field('visit_day') visitDay!: string | null; // "YYYY-MM-DD"
+
   @children('test_results') testResults!: any;
 }

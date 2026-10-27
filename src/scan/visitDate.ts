@@ -19,9 +19,13 @@ export function toVisitDate(date: Date): string {
 /**
  * True when text is a real calendar day written YYYY-MM-DD, in a year of MIN_VISIT_YEAR (1900) or later, and not later
  * than today's local calendar day. A shape mismatch, a year before 1900 (0000-01-01, 0026-07-08), a day that does not
- * exist (2026-02-29, 2026-04-31, 2026-13-45, a zero month or day) and a future day are all false. Today itself is true. `today` is a parameter so that a caller or test can fix the clock.
+ * exist (2026-02-29, 2026-04-31, 2026-13-45, a zero month or day) and a future day are all false. Today itself is true. `today` is a parameter so that a caller or test can fix the clock; an invalid clock (a Date holding NaN) gives false.
  */
 export function isVisitDate(text: string, today: Date = new Date()): boolean {
+  // An invalid clock is false on purpose. It would be false anyway, but only by accident: "2026-07-08" is not <= "0NaN-NaN-NaN".
+  if (Number.isNaN(today.getTime())) {
+    return false;
+  }
   if (!VISIT_DATE_PATTERN.test(text)) {
     return false;
   }
@@ -38,4 +42,12 @@ export function isVisitDate(text: string, today: Date = new Date()): boolean {
     return false;
   }
   return text <= toVisitDate(today);
+}
+
+/**
+ * The text to prefill in the date field: the candidate (for example the date the identity filter found) when it is a valid
+ * visit date that is not in the future, else an empty string so that the user types the date.
+ */
+export function prefillDate(candidate: string | null, today: Date = new Date()): string {
+  return typeof candidate === 'string' && isVisitDate(candidate, today) ? candidate : '';
 }

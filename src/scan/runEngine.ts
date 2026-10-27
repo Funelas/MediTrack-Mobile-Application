@@ -48,10 +48,17 @@ export type ReadResult =
       kind: 'read';
       record: ContractARecord;
       noteCount: number;
+      /** Notes that say the sex was unknown and the widest printed range was used; counted, never kept. */
+      widestRangeCount: number;
+      /** Parsed results that are not scored (not `supported`), so they are not in the Contract B. */
+      unsupportedCount: number;
       items: ReadItem[];
       reviewIndexes: number[];
       readyIndexes: number[];
     };
+
+/** The ending of the parser's note for an analyte read with the widest printed range (parser.ts, sex unknown). */
+const WIDEST_RANGE_NOTE_END = ': sex unknown, used the widest printed range';
 
 /** Runs the identity filter on the raw pages. A payload of null is "no table"; an exception is "could not read". */
 export function filterScan(pages: RawPage[], filter: IdentityFilter): FilterScanResult {
@@ -91,6 +98,8 @@ export function readPayload(payload: unknown, ctx: ReadContext): ReadResult {
       kind: 'read',
       record: out.record,
       noteCount: out.notes.length,
+      widestRangeCount: out.notes.filter((note) => note.endsWith(WIDEST_RANGE_NOTE_END)).length,
+      unsupportedCount: results.filter((row) => row.supported !== true).length,
       items,
       reviewIndexes: split.toReview.map(indexOf),
       readyIndexes: split.ready.map(indexOf),
